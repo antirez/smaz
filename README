@@ -37,6 +37,12 @@ by smaz:
 'Mi illumino di immenso' compressed by 37%
 'L'autore di questa libreria vive in Sicilia' compressed by 28%
 
+It can compress URLS pretty well:
+
+'http://google.com' compressed by 59%
+'http://programming.reddit.com' compressed by 52%
+'http://github.com/antirez/smaz/tree/master' compressed by 46%
+
 USAGE
 -----
 

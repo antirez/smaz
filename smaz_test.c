@@ -24,6 +24,10 @@ int main(void) {
         "Nel mezzo del cammin di nostra vita, mi ritrovai in una selva oscura",
         "Mi illumino di immenso",
         "L'autore di questa libreria vive in Sicilia",
+        "try it against urls",
+        "http://google.com",
+        "http://programming.reddit.com",
+        "http://github.com/antirez/smaz/tree/master",
         NULL
     };
 
