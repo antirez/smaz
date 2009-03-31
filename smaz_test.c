@@ -11,7 +11,35 @@ int main(void) {
     int comprlen, decomprlen;
     int j, ranlen;
     int times = 1000000;
+    char *strings[] = {
+        "This is a small string",
+        "foobar",
+        "the end",
+        "not-a-g00d-Exampl333",
+        "Smaz is a simple compression library",
+        "Nothing is more difficult, and therefore more precious, than to be able to decide",
+        "this is an example of what works very well with smaz",
+        "1000 numbers 2000 will 10 20 30 compress very little",
+        "and now a few italian sentences:",
+        "Nel mezzo del cammin di nostra vita, mi ritrovai in una selva oscura",
+        "Mi illumino di immenso",
+        "L'autore di questa libreria vive in Sicilia",
+        NULL
+    };
 
+    j=0;
+    while(strings[j]) {
+        int comprlevel;
+
+        comprlen = smaz_compress(strings[j],strlen(strings[j]),out,4096);
+        comprlevel = 100-((100*comprlen)/strlen(strings[j]));
+        if (comprlevel < 0) {
+            printf("'%s' enlarged by %d%%\n",strings[j],-comprlevel);
+        } else {
+            printf("'%s' compressed by %d%%\n",strings[j],comprlevel);
+        }
+        j++;
+    }
     printf("Encrypting and decrypting %d test strings...\n", times);
     while(times--) {
         ranlen = random() % 512;
