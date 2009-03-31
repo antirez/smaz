@@ -14,6 +14,8 @@ that Smaz is able to compress even strings of two or three bytes!
 
 For example the string "the" is compressed into a single byte.
 
+To compare this with other libraries, think that like zlib will usually not be able to compress text shorter than 100 bytes.
+
 COMPRESSION EXAMPLES
 --------------------
 
