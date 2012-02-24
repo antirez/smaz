@@ -28,6 +28,7 @@ int main(void) {
         "http://google.com",
         "http://programming.reddit.com",
         "http://github.com/antirez/smaz/tree/master",
+        "/media/hdb1/music/Alben/The Bla",
         NULL
     };
 
@@ -35,8 +36,15 @@ int main(void) {
     while(strings[j]) {
         int comprlevel;
 
-        comprlen = smaz_compress(strings[j],strlen(strings[j]),out,4096);
+        comprlen = smaz_compress(strings[j],strlen(strings[j]),out,sizeof(out));
         comprlevel = 100-((100*comprlen)/strlen(strings[j]));
+        decomprlen = smaz_decompress(out,comprlen,d,sizeof(d));
+        if (strlen(strings[j]) != (unsigned)decomprlen ||
+            memcmp(strings[j],d,decomprlen))
+        {
+            printf("BUG: error compressing '%s'\n", strings[j]);
+            exit(1);
+        }
         if (comprlevel < 0) {
             printf("'%s' enlarged by %d%%\n",strings[j],-comprlevel);
         } else {
@@ -46,21 +54,17 @@ int main(void) {
     }
     printf("Encrypting and decrypting %d test strings...\n", times);
     while(times--) {
+        char charset[]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvxyz/. ";
         ranlen = random() % 512;
-        for (j = 0; j < ranlen; j++) {
-            in[j] = (unsigned char) random() % 256;
-        }
-        comprlen = smaz_compress(in,ranlen,out,4096);
-        decomprlen = smaz_decompress(out,comprlen,d,4096);
 
-        /*
-        {
-            int i;
-            for(i=0;i<comprlen;i++) {
-                printf("%d (%c)\n", (unsigned char)out[i],out[i]);
-            }
+        for (j = 0; j < ranlen; j++) {
+            if (times & 1)
+                in[j] = charset[random() % (sizeof(charset)-1)];
+            else
+                in[j] = (char)(random() & 0xff);
         }
-        */
+        comprlen = smaz_compress(in,ranlen,out,sizeof(out));
+        decomprlen = smaz_decompress(out,comprlen,d,sizeof(out));
 
         if (ranlen != decomprlen || memcmp(in,d,ranlen)) {
             printf("Bug! TEST NOT PASSED\n");
