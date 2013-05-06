@@ -11,6 +11,7 @@ int main(void) {
     int comprlen, decomprlen;
     int j, ranlen;
     int times = 1000000;
+    struct Branch *trie;
     char *strings[] = {
         "This is a small string",
         "foobar",
@@ -33,10 +34,11 @@ int main(void) {
     };
 
     j=0;
+    trie = buildTrie();
     while(strings[j]) {
         int comprlevel;
 
-        comprlen = smaz_compress(strings[j],strlen(strings[j]),out,sizeof(out));
+        comprlen = smaz_compress_trie(trie, strings[j],strlen(strings[j]),out,sizeof(out));
         comprlevel = 100-((100*comprlen)/strlen(strings[j]));
         decomprlen = smaz_decompress(out,comprlen,d,sizeof(d));
         if (strlen(strings[j]) != (unsigned)decomprlen ||
@@ -52,6 +54,7 @@ int main(void) {
         }
         j++;
     }
+    /*
     printf("Encrypting and decrypting %d test strings...\n", times);
     while(times--) {
         char charset[]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvxyz/. ";
@@ -70,8 +73,10 @@ int main(void) {
             printf("Bug! TEST NOT PASSED\n");
             exit(1);
         }
-        /* printf("%d -> %d\n", comprlen, decomprlen); */
     }
     printf("TEST PASSED :)\n");
+    */
+
+    getchar();
     return 0;
 }
