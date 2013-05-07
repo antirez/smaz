@@ -2,6 +2,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "smaz.h"
+
 /* Our compression codebook, used for compression */
 static char *Smaz_cb[241] = {
 "\002s,\266", "\003had\232\002leW", "\003on \216", "", "\001yS",
@@ -82,13 +84,6 @@ const char startLetter = '\n';
 const char endLetter = 'z';
 const int noLetters = 'z' - '\n' +1;
 
-struct Branch {
-    int value;
-    struct Branch **children;
-    char *shortcut;
-    int shortcutLen;
-};
-
 char getKey(char ir) {
     return ir - startLetter;
 }
@@ -110,7 +105,7 @@ void freeBranch(struct Branch *t) {
 
 struct Branch *newTrie() {
     struct Branch *newBranch;
-    newBranch = (struct Branch *)calloc(sizeof(struct Branch), 1);
+    newBranch = (struct Branch *)calloc(1, sizeof(struct Branch));
     newBranch->value = -1;
     return newBranch;
 }
@@ -135,12 +130,11 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
         memcpy(t->shortcut, remEntry, entryLen);
         t->shortcut[entryLen] = '\0';
         t->value = value;
-        t->shortcutLen = entryLen;
         t->children = NULL;
         return;
     }
 
-    if (entryLen == 0 && t->shortcutLen == 0) {
+    if (entryLen == 0 && strlen(t->shortcut)) {
         t->value = value;
         return;
     } else {
@@ -148,8 +142,8 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
         int x;
         char *commonPrefix;
 
-        if (smallestLen > t->shortcutLen) {
-            smallestLen = t->shortcutLen;
+        if (smallestLen > strlen(t->shortcut)) {
+            smallestLen = strlen(t->shortcut);
         }
 
         for (x = 0; x < smallestLen && t->shortcut[x] == remEntry[x]; x++) { }
@@ -158,14 +152,14 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
         memcpy(commonPrefix, t->shortcut, x);
         commonPrefix[x] = '\0';
 
-        if (x < t->shortcutLen) {
+        if (x < strlen(t->shortcut)) {
             char *ttail;
             int tkey;
             struct Branch *newTBranch;
 
-            ttail = (char *)malloc(sizeof(char) * (t->shortcutLen - x + 1));
-            memcpy(ttail, &t->shortcut[x+1], (t->shortcutLen - x));
-            ttail[(t->shortcutLen - x)] = '\0';
+            ttail = (char *)malloc(sizeof(char) * (strlen(t->shortcut) - x + 1));
+            memcpy(ttail, &t->shortcut[x+1], (strlen(t->shortcut) - x));
+            ttail[(strlen(t->shortcut) - x)] = '\0';
 
             tkey = getKey(t->shortcut[x]);
 
@@ -177,7 +171,7 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
             if (t->children != NULL) {
                 free(t->children);
             }
-            t->children = (struct Branch **)calloc(sizeof(struct Branch *), noLetters);
+            t->children = (struct Branch **)calloc(noLetters, sizeof(struct Branch *));
             t->children[tkey] = newTBranch;
             free(t->shortcut);
             t->shortcut = commonPrefix;
@@ -195,9 +189,12 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
             memcpy(vtail, &remEntry[x+1], (entryLen - x));
             vtail[entryLen - x] = '\0';
 
+            if (t->children == NULL) {
+                t->children = (struct Branch **)calloc(noLetters, sizeof(struct Branch *));
+            }
             if (t->children[vkey] == NULL) {
                 struct Branch *newVBranch;
-                newVBranch = (struct Branch *)calloc(sizeof(struct Branch), 1);
+                newVBranch = (struct Branch *)calloc(1, sizeof(struct Branch));
                 newVBranch->value = -1;
                 t->children[vkey] = newVBranch;
             }
@@ -240,10 +237,10 @@ int smaz_compress_trie(struct Branch *trie, char *in, int inlen, char *out, int 
                 length++;
                 if (tmpBranch->shortcut) {
                     /* attempt to get through the shortcut, probably need to bounds check in here... */
-                    if (memcmp(tmpBranch->shortcut, in+length, tmpBranch->shortcutLen) != 0) {
+                    if (memcmp(tmpBranch->shortcut, in+length, strlen(tmpBranch->shortcut)) != 0) {
                         break;
                     }
-                    length += tmpBranch->shortcutLen;
+                    length += strlen(tmpBranch->shortcut);
                 }
                 branch = tmpBranch;
             } else {
@@ -251,7 +248,6 @@ int smaz_compress_trie(struct Branch *trie, char *in, int inlen, char *out, int 
             }
         }
         if (branch->value > 0) {
-            printf("comressed value: %d\n", branch->value);
             /* Match found in the hash table,
              * prepare a verbatim bytes flush if needed */
             if (verblen) {

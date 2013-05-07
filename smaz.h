@@ -1,6 +1,12 @@
 #ifndef _SMAZ_H
 #define _SMAZ_H
 
+struct Branch {
+    int value;
+    struct Branch **children;
+    char *shortcut;
+};
+
 struct Branch *newTrie();
 struct Branch *buildTrie();
 void freeBranch(struct Branch *t);
