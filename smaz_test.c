@@ -4,15 +4,53 @@
 
 #include "smaz.h"
 
+
+void hexDump (char *desc, void *addr, int len) {
+    int i;
+    unsigned char buff[17];
+    unsigned char *pc = addr;
+
+    if (desc != NULL)
+        printf ("%s:\n", desc);
+
+    for (i = 0; i < len; i++) {
+
+        if ((i % 16) == 0) {
+            if (i != 0)
+                printf ("  %s\n", buff);
+
+            printf ("  %04x ", i);
+        }
+
+        printf (" %02x", pc[i]);
+
+        if ((pc[i] < 0x20) || (pc[i] > 0x7e))
+            buff[i % 16] = '.';
+        else
+            buff[i % 16] = pc[i];
+        buff[(i % 16) + 1] = '\0';
+    }
+
+    while ((i % 16) != 0) {
+        printf ("   ");
+        i++;
+    }
+
+    printf ("  %s\n", buff);
+}
+
 int main(void) {
     char in[512];
     char out[4096];
     char d[4096];
     int comprlen, decomprlen;
-    int j, ranlen;
+    int j, ranlen, x;
     int times = 1000000;
     struct Branch *trie;
     char *strings[] = {
+        "nojQfTh",
+        "ht",
+        "QtZpZuMhlzfgHFEGA.Kja/hsIayllFSAMFDl.fQ/bJdzfzCvxdclaIbzzWyhbOhCj.nydSJSbmPUzhOHYqszMhvIBqqsSluQkxLbcUuRVXmhS.CrCIBPpKXEPbyhLDLJNn.pVGFEdFmKDC VLAk.LWDqLOlmhyvviIzBOBWsWGQpIPJjftiEd updeZIZjBVrOmDPGJmcZZ CziiEeAhtvkUnYdaFuvKGvdmQnmGaZVtWCpaxpVozEWjc/HyGQFMaiMqjzKYmgPGzSxsFPuCjP JcHUinZvLWVPTSarCUUYQmSGGyPYfeXCEunngaxFxPleyZjNtClHCRdYdsxWkiopaZqU.kaINJmZiUmp",
         "This is a small string",
         "foobar",
         "the end",
@@ -35,10 +73,30 @@ int main(void) {
 
     j=0;
     trie = buildTrie();
+
+    /*
+    printf("here: %d\n", trie->children['9'-'\n']);
+    exit(0);
+    trie = newTrie();
+    addToBranch(trie, "f", 1);
+    addToBranch(trie, "for", 3);
+    addToBranch(trie, "fo", 2);
+    exit(0);
+    for (x = 0; x < 'z' - '\n'; x++) {
+        printf("here: %c %d\n", x+'\n', trie->children['o'-'\n']->children[x]);
+    }
+    printf("here: '%s'\n", trie->children['f'-'\n']->children['o'-'\n']->shortcut);
+    */
+
+
     while(strings[j]) {
         int comprlevel;
+        int comprlen2;
 
         comprlen = smaz_compress_trie(trie, strings[j],strlen(strings[j]),out,sizeof(out));
+        /*hexDump("out bad", &out, 400);*/
+        comprlen2 = smaz_compress(strings[j],strlen(strings[j]),out,sizeof(out));
+        /*hexDump("out good", &out, 400);*/
         comprlevel = 100-((100*comprlen)/strlen(strings[j]));
         decomprlen = smaz_decompress(out,comprlen,d,sizeof(d));
         if (strlen(strings[j]) != (unsigned)decomprlen ||
@@ -54,11 +112,11 @@ int main(void) {
         }
         j++;
     }
-    /*
     printf("Encrypting and decrypting %d test strings...\n", times);
     while(times--) {
         char charset[]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvxyz/. ";
         ranlen = random() % 512;
+        printf("doing %d\n", times);
 
         for (j = 0; j < ranlen; j++) {
             if (times & 1)
@@ -66,16 +124,20 @@ int main(void) {
             else
                 in[j] = (char)(random() & 0xff);
         }
-        comprlen = smaz_compress(in,ranlen,out,sizeof(out));
+
+        comprlen = smaz_compress_trie(trie, in,ranlen,out,sizeof(out));
         decomprlen = smaz_decompress(out,comprlen,d,sizeof(out));
 
         if (ranlen != decomprlen || memcmp(in,d,ranlen)) {
             printf("Bug! TEST NOT PASSED\n");
+            hexDump("in", &in, ranlen);
+            hexDump("out bad", &out, comprlen);
+            comprlen = smaz_compress(in,ranlen,out,sizeof(out));
+            hexDump("out good", &out, comprlen);
             exit(1);
         }
     }
     printf("TEST PASSED :)\n");
-    */
 
     getchar();
     return 0;

@@ -125,6 +125,7 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
     int entryLen;
     entryLen = strlen(remEntry);
 
+
     if (t->shortcut == NULL) {
         t->shortcut = (char *)malloc(sizeof(char) * (entryLen + 1));
         memcpy(t->shortcut, remEntry, entryLen);
@@ -134,7 +135,7 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
         return;
     }
 
-    if (entryLen == 0 && strlen(t->shortcut)) {
+    if (entryLen == 0 && strlen(t->shortcut) == 0) {
         t->value = value;
         return;
     } else {
@@ -157,9 +158,9 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
             int tkey;
             struct Branch *newTBranch;
 
-            ttail = (char *)malloc(sizeof(char) * (strlen(t->shortcut) - x + 1));
+
+            ttail = (char *)calloc((strlen(t->shortcut) - x + 1), sizeof(char));
             memcpy(ttail, &t->shortcut[x+1], (strlen(t->shortcut) - x));
-            ttail[(strlen(t->shortcut) - x)] = '\0';
 
             tkey = getKey(t->shortcut[x]);
 
@@ -185,9 +186,8 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
             char *vtail;
 
             vkey = getKey(remEntry[x]);
-            vtail = (char *)malloc(sizeof(char) * (entryLen - x + 1));
+            vtail = (char *)calloc((entryLen - x + 1), sizeof(char));
             memcpy(vtail, &remEntry[x+1], (entryLen - x));
-            vtail[entryLen - x] = '\0';
 
             if (t->children == NULL) {
                 t->children = (struct Branch **)calloc(noLetters, sizeof(struct Branch *));
@@ -196,6 +196,7 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
                 struct Branch *newVBranch;
                 newVBranch = (struct Branch *)calloc(1, sizeof(struct Branch));
                 newVBranch->value = -1;
+                /*printf("asdf: %c\n", vkey+'\n');*/
                 t->children[vkey] = newVBranch;
             }
             addToBranch(t->children[vkey], vtail, value);
@@ -227,10 +228,13 @@ int smaz_compress_trie(struct Branch *trie, char *in, int inlen, char *out, int 
         /* Try to lookup substrings into the hash table, starting from the
          * longer to the shorter substrings */
         branch = trie;
-        while (1) {
+        while (length < inlen) {
             /* see if there is something at the next branch */
             char nextChar;
             nextChar = in[length];
+            if (nextChar < startLetter || nextChar > endLetter) {
+                break;
+            }
             if (branch->children != NULL && branch->children[nextChar - startLetter] != NULL) {
                 struct Branch *tmpBranch;
                 tmpBranch = branch->children[nextChar - startLetter];
@@ -238,25 +242,30 @@ int smaz_compress_trie(struct Branch *trie, char *in, int inlen, char *out, int 
                 if (tmpBranch->shortcut) {
                     /* attempt to get through the shortcut, probably need to bounds check in here... */
                     if (memcmp(tmpBranch->shortcut, in+length, strlen(tmpBranch->shortcut)) != 0) {
+                        /*printf("broke b '%s' != '%s' - %d\n", tmpBranch->shortcut, in+length, branch->value);*/
+                        length--;
                         break;
                     }
                     length += strlen(tmpBranch->shortcut);
                 }
                 branch = tmpBranch;
             } else {
+                /*printf("broke a %d\n", branch->children);*/
                 break;
             }
         }
-        if (branch->value > 0) {
+        if (branch->value >= 0 && length <= inlen) {
             /* Match found in the hash table,
              * prepare a verbatim bytes flush if needed */
             if (verblen) {
                 needed = (verblen == 1) ? 2 : 2+verblen;
+                /*printf("Verb: %d\n", verblen);*/
                 flush = out;
                 out += needed;
                 outlen -= needed;
             }
             /* Emit the byte */
+            /*printf("Value: %d\n", branch->value);*/
             if (outlen <= 0) return _outlen+1;
             out[0] = branch->value;
             out++;
@@ -327,6 +336,7 @@ int smaz_compress(char *in, int inlen, char *out, int outlen) {
                      * prepare a verbatim bytes flush if needed */
                     if (verblen) {
                         needed = (verblen == 1) ? 2 : 2+verblen;
+                        /*printf("Verb good: %d\n", verblen);*/
                         flush = out;
                         out += needed;
                         outlen -= needed;
@@ -334,6 +344,7 @@ int smaz_compress(char *in, int inlen, char *out, int outlen) {
                     /* Emit the byte */
                     if (outlen <= 0) return _outlen+1;
                     out[0] = slot[slot[0]+1];
+                    /*printf("Value: %d\n", *(unsigned char *)(&slot[slot[0]+1]));*/
                     out++;
                     outlen--;
                     inlen -= j;
