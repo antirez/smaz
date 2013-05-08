@@ -208,25 +208,16 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
 }
 
 int smaz_compress_trie(struct Branch *trie, char *in, int inlen, char *out, int outlen) {
-    unsigned int h1,h2,h3=0;
     int verblen = 0, _outlen = outlen;
     char verb[256], *_out = out;
 
     while(inlen) {
-        int j = 7, needed;
+        int needed;
         char *flush = NULL;
-        char *slot;
 
         int length = 0;
         struct Branch *branch;
 
-        h1 = h2 = in[0]<<3;
-        if (inlen > 1) h2 += in[1];
-        if (inlen > 2) h3 = h2^in[2];
-        if (j > inlen) j = inlen;
-
-        /* Try to lookup substrings into the hash table, starting from the
-         * longer to the shorter substrings */
         branch = trie;
         while (length < inlen) {
             /* see if there is something at the next branch */

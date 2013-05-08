@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include "smaz.h"
 
@@ -113,31 +114,46 @@ int main(void) {
         j++;
     }
     printf("Encrypting and decrypting %d test strings...\n", times);
-    while(times--) {
-        char charset[]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvxyz/. ";
-        ranlen = random() % 512;
-        printf("doing %d\n", times);
+    {
+        struct timeval t1, t2;
+        double elapsedTime;
 
-        for (j = 0; j < ranlen; j++) {
-            if (times & 1)
-                in[j] = charset[random() % (sizeof(charset)-1)];
-            else
-                in[j] = (char)(random() & 0xff);
-        }
+        gettimeofday(&t1, NULL);
+        while(times--) {
+            char charset[]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvxyz/. ";
+            ranlen = random() % 512;
+            /*printf("doing %d\n", times);*/
 
-        comprlen = smaz_compress_trie(trie, in,ranlen,out,sizeof(out));
-        decomprlen = smaz_decompress(out,comprlen,d,sizeof(out));
+            for (j = 0; j < ranlen; j++) {
+                if (times & 1)
+                    in[j] = charset[random() % (sizeof(charset)-1)];
+                else
+                    in[j] = (char)(random() & 0xff);
+            }
 
-        if (ranlen != decomprlen || memcmp(in,d,ranlen)) {
-            printf("Bug! TEST NOT PASSED\n");
-            hexDump("in", &in, ranlen);
-            hexDump("out bad", &out, comprlen);
+            /*comprlen = smaz_compress_trie(trie, in,ranlen,out,sizeof(out));*/
             comprlen = smaz_compress(in,ranlen,out,sizeof(out));
-            hexDump("out good", &out, comprlen);
-            exit(1);
+            decomprlen = smaz_decompress(out,comprlen,d,sizeof(out));
+
+            if (ranlen != decomprlen || memcmp(in,d,ranlen)) {
+                printf("Bug! TEST NOT PASSED\n");
+                hexDump("in", &in, ranlen);
+                hexDump("out bad", &out, comprlen);
+                comprlen = smaz_compress(in,ranlen,out,sizeof(out));
+                hexDump("out good", &out, comprlen);
+                exit(1);
+            }
         }
+        
+        gettimeofday(&t2, NULL);
+        
+        /*elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0; 
+        elapsedTime += (t2.tv_usec - t1.tv_usec) / 1000.0;*/
+        printf("time = %u.%06u\n", t1.tv_sec, t1.tv_usec);
+        printf("time = %u.%06u\n", t2.tv_sec, t2.tv_usec);
+
+        printf("TEST PASSED :)\n");
     }
-    printf("TEST PASSED :)\n");
 
     getchar();
     return 0;
