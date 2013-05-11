@@ -80,13 +80,8 @@ static char *Smaz_rcb[254] = {
 "e, ", " it", "whi", " ma", "ge", "x", "e c", "men", ".com"
 };
 
-const char startLetter = '\n';
-const char endLetter = 'z';
-const int noLetters = 'z' - '\n' +1;
-
-char getKey(char ir) {
-    return ir - startLetter;
-}
+const unsigned char endLetter = 'z';
+const int noLetters = 'z' +1;
 
 void freeBranch(struct Branch *t) {
     int x;
@@ -128,6 +123,7 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
 
     if (t->shortcut == NULL) {
         t->shortcut = (char *)malloc(sizeof(char) * (entryLen + 1));
+        t->shortcut_length = entryLen;
         memcpy(t->shortcut, remEntry, entryLen);
         t->shortcut[entryLen] = '\0';
         t->value = value;
@@ -135,7 +131,7 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
         return;
     }
 
-    if (entryLen == 0 && strlen(t->shortcut) == 0) {
+    if (entryLen == 0 && t->shortcut_length == 0) {
         t->value = value;
         return;
     } else {
@@ -143,8 +139,8 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
         int x;
         char *commonPrefix;
 
-        if (smallestLen > strlen(t->shortcut)) {
-            smallestLen = strlen(t->shortcut);
+        if (smallestLen > t->shortcut_length) {
+            smallestLen = t->shortcut_length;
         }
 
         for (x = 0; x < smallestLen && t->shortcut[x] == remEntry[x]; x++) { }
@@ -153,21 +149,22 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
         memcpy(commonPrefix, t->shortcut, x);
         commonPrefix[x] = '\0';
 
-        if (x < strlen(t->shortcut)) {
+        if (x < t->shortcut_length) {
             char *ttail;
             int tkey;
             struct Branch *newTBranch;
 
 
-            ttail = (char *)calloc((strlen(t->shortcut) - x + 1), sizeof(char));
-            memcpy(ttail, &t->shortcut[x+1], (strlen(t->shortcut) - x));
+            ttail = (char *)calloc((t->shortcut_length - x + 1), sizeof(char));
+            memcpy(ttail, &t->shortcut[x+1], (t->shortcut_length - x));
 
-            tkey = getKey(t->shortcut[x]);
+            tkey = t->shortcut[x];
 
             newTBranch = (struct Branch *)malloc(sizeof(struct Branch) * 1);
             newTBranch->children = t->children;
             newTBranch->value = t->value;
             newTBranch->shortcut = ttail;
+            newTBranch->shortcut_length = strlen(ttail);
 
             if (t->children != NULL) {
                 free(t->children);
@@ -176,6 +173,7 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
             t->children[tkey] = newTBranch;
             free(t->shortcut);
             t->shortcut = commonPrefix;
+            t->shortcut_length = strlen(commonPrefix);
             t->value = -1;
         } else {
             /* the value of t remains */
@@ -185,7 +183,7 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
             int vkey;
             char *vtail;
 
-            vkey = getKey(remEntry[x]);
+            vkey = remEntry[x];
             vtail = (char *)calloc((entryLen - x + 1), sizeof(char));
             memcpy(vtail, &remEntry[x+1], (entryLen - x));
 
@@ -212,51 +210,48 @@ int smaz_compress_trie(struct Branch *trie, char *in, int inlen, char *out, int 
     char verb[256], *_out = out;
 
     while(inlen) {
-        int needed;
+        int needed = 0;
         char *flush = NULL;
-
         int length = 0;
-        struct Branch *branch;
+        struct Branch *branch = NULL;
+        int remaining_length = inlen;
 
         branch = trie;
-        while (length < inlen) {
-            /* see if there is something at the next branch */
-            char nextChar;
+        while (remaining_length--) {
+            unsigned int nextChar;
+            struct Branch **children;
             nextChar = in[length];
-            if (nextChar < startLetter || nextChar > endLetter) {
+            if (nextChar > endLetter) {
                 break;
             }
-            if (branch->children != NULL && branch->children[nextChar - startLetter] != NULL) {
+            children = branch->children;
+            if (children && children[nextChar]) {
                 struct Branch *tmpBranch;
-                tmpBranch = branch->children[nextChar - startLetter];
+                tmpBranch = children[nextChar];
                 length++;
                 if (tmpBranch->shortcut) {
-                    /* attempt to get through the shortcut, probably need to bounds check in here... */
-                    if (memcmp(tmpBranch->shortcut, in+length, strlen(tmpBranch->shortcut)) != 0) {
-                        /*printf("broke b '%s' != '%s' - %d\n", tmpBranch->shortcut, in+length, branch->value);*/
+                    if (length <= inlen &&
+                        memcmp(tmpBranch->shortcut, in+length, tmpBranch->shortcut_length)) {
                         length--;
                         break;
                     }
-                    length += strlen(tmpBranch->shortcut);
+                    length += tmpBranch->shortcut_length;
                 }
                 branch = tmpBranch;
-            } else {
-                /*printf("broke a %d\n", branch->children);*/
-                break;
+                continue;
             }
+            break;
         }
         if (branch->value >= 0 && length <= inlen) {
             /* Match found in the hash table,
              * prepare a verbatim bytes flush if needed */
             if (verblen) {
                 needed = (verblen == 1) ? 2 : 2+verblen;
-                /*printf("Verb: %d\n", verblen);*/
                 flush = out;
                 out += needed;
                 outlen -= needed;
             }
             /* Emit the byte */
-            /*printf("Value: %d\n", branch->value);*/
             if (outlen <= 0) return _outlen+1;
             out[0] = branch->value;
             out++;

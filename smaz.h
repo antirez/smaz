@@ -5,6 +5,7 @@ struct Branch {
     int value;
     struct Branch **children;
     char *shortcut;
+    int shortcut_length;
 };
 
 struct Branch *newTrie();

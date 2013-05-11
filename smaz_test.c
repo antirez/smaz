@@ -131,8 +131,8 @@ int main(void) {
                     in[j] = (char)(random() & 0xff);
             }
 
-            /*comprlen = smaz_compress_trie(trie, in,ranlen,out,sizeof(out));*/
-            comprlen = smaz_compress(in,ranlen,out,sizeof(out));
+            comprlen = smaz_compress_trie(trie, in,ranlen,out,sizeof(out));
+            /*comprlen = smaz_compress(in,ranlen,out,sizeof(out));*/
             decomprlen = smaz_decompress(out,comprlen,d,sizeof(out));
 
             if (ranlen != decomprlen || memcmp(in,d,ranlen)) {
