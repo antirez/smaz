@@ -83,7 +83,7 @@ static char *Smaz_rcb[254] = {
 #define SMAZ_END_LETTER 'z'
 #define SMAZ_LETTER_COUNT ('z'+1)
 
-void smaz_free_trie(struct Branch *t) {
+void smaz_free_trie(struct SmazBranch *t) {
     if (t->children != NULL) {
         int x = 0;
         for (x = 0; x < SMAZ_LETTER_COUNT; x++) {
@@ -99,7 +99,7 @@ void smaz_free_trie(struct Branch *t) {
     free(t);
 }
 
-void smaz_add_to_branch(struct Branch *t, char *remEntry, int value) {
+void smaz_add_to_branch(struct SmazBranch *t, char *remEntry, int value) {
     int entryLen;
     entryLen = strlen(remEntry);
 
@@ -133,7 +133,7 @@ void smaz_add_to_branch(struct Branch *t, char *remEntry, int value) {
         if (x < t->shortcut_length) {
             char *ttail;
             int tkey;
-            struct Branch *newTBranch;
+            struct SmazBranch *newTBranch;
 
 
             ttail = (char *)calloc((t->shortcut_length - x + 1), sizeof(char));
@@ -141,7 +141,7 @@ void smaz_add_to_branch(struct Branch *t, char *remEntry, int value) {
 
             tkey = t->shortcut[x];
 
-            newTBranch = (struct Branch *)calloc(1, sizeof(struct Branch));
+            newTBranch = (struct SmazBranch *)calloc(1, sizeof(struct SmazBranch));
             newTBranch->children = t->children;
             newTBranch->value = t->value;
             newTBranch->shortcut = ttail;
@@ -150,7 +150,7 @@ void smaz_add_to_branch(struct Branch *t, char *remEntry, int value) {
             if (t->children != NULL) {
                 free(t->children);
             }
-            t->children = (struct Branch **)calloc(SMAZ_LETTER_COUNT, sizeof(struct Branch *));
+            t->children = (struct SmazBranch **)calloc(SMAZ_LETTER_COUNT, sizeof(struct SmazBranch *));
             t->children[tkey] = newTBranch;
             free(t->shortcut);
             t->shortcut = commonPrefix;
@@ -170,11 +170,11 @@ void smaz_add_to_branch(struct Branch *t, char *remEntry, int value) {
             memcpy(vtail, &remEntry[x+1], (entryLen - x));
 
             if (t->children == NULL) {
-                t->children = (struct Branch **)calloc(SMAZ_LETTER_COUNT, sizeof(struct Branch *));
+                t->children = (struct SmazBranch **)calloc(SMAZ_LETTER_COUNT, sizeof(struct SmazBranch *));
             }
             if (t->children[vkey] == NULL) {
-                struct Branch *newVBranch;
-                newVBranch = (struct Branch *)calloc(1, sizeof(struct Branch));
+                struct SmazBranch *newVBranch;
+                newVBranch = (struct SmazBranch *)calloc(1, sizeof(struct SmazBranch));
                 newVBranch->value = -1;
                 /*printf("asdf: %c\n", vkey+'\n');*/
                 t->children[vkey] = newVBranch;
@@ -188,11 +188,11 @@ void smaz_add_to_branch(struct Branch *t, char *remEntry, int value) {
     }
 }
 
-struct Branch *smaz_build_custom_trie(char *codebook[254]) {
-    struct Branch *trie;
+struct SmazBranch *smaz_build_custom_trie(char *codebook[254]) {
+    struct SmazBranch *trie;
     int x;
 
-    trie = (struct Branch *)calloc(1, sizeof(struct Branch));
+    trie = (struct SmazBranch *)calloc(1, sizeof(struct SmazBranch));
     trie->value = -1;
 
     for (x = 0; x < 254; x++) {
@@ -201,11 +201,11 @@ struct Branch *smaz_build_custom_trie(char *codebook[254]) {
     return trie;
 }
 
-struct Branch *smaz_build_trie() {
+struct SmazBranch *smaz_build_trie() {
     return smaz_build_custom_trie(Smaz_rcb);
 }
 
-int smaz_compress_trie(struct Branch *trie, char *in, int inlen, char *out, int outlen) {
+int smaz_compress_trie(struct SmazBranch *trie, char *in, int inlen, char *out, int outlen) {
     int verblen = 0, _outlen = outlen;
     char verb[256], *_out = out;
 
@@ -213,20 +213,20 @@ int smaz_compress_trie(struct Branch *trie, char *in, int inlen, char *out, int 
         int needed = 0;
         char *flush = NULL;
         int length = 0;
-        struct Branch *branch = NULL;
+        struct SmazBranch *branch = NULL;
         int remaining_length = inlen;
 
         branch = trie;
         while (remaining_length--) {
             unsigned char nextChar;
-            struct Branch **children;
+            struct SmazBranch **children;
             nextChar = in[length];
             if (nextChar > SMAZ_END_LETTER) {
                 break;
             }
             children = branch->children;
             if (children && children[nextChar]) {
-                struct Branch *tmpBranch;
+                struct SmazBranch *tmpBranch;
                 char *shortcut;
                 int shortcut_length;
                 tmpBranch = children[nextChar];

@@ -1,18 +1,18 @@
 #ifndef _SMAZ_H
 #define _SMAZ_H
 
-struct Branch {
+struct SmazBranch {
     int value;
-    struct Branch **children;
+    struct SmazBranch **children;
     char *shortcut;
     int shortcut_length;
 };
 
-struct Branch *smaz_build_trie();
-void smaz_free_trie(struct Branch *t);
+struct SmazBranch *smaz_build_trie();
+void smaz_free_trie(struct SmazBranch *t);
 
 int smaz_compress(char *in, int inlen, char *out, int outlen);
-int smaz_compress_trie(struct Branch *trie, char *in, int inlen, char *out, int outlen);
+int smaz_compress_trie(struct SmazBranch *trie, char *in, int inlen, char *out, int outlen);
 int smaz_decompress(char *in, int inlen, char *out, int outlen);
 
 #endif

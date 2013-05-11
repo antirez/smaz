@@ -47,7 +47,7 @@ int main(void) {
     int comprlen, decomprlen;
     int j, ranlen, x;
     int times = 1000000;
-    struct Branch *trie;
+    struct SmazBranch *trie;
     char *strings[] = {
         "nojQfTh",
         "ht",
