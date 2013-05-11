@@ -8,10 +8,8 @@ struct Branch {
     int shortcut_length;
 };
 
-struct Branch *newTrie();
-struct Branch *buildTrie();
-void freeBranch(struct Branch *t);
-void addToBranch(struct Branch *t, char *remEntry, int value);
+struct Branch *smaz_build_trie();
+void smaz_free_trie(struct Branch *t);
 
 int smaz_compress(char *in, int inlen, char *out, int outlen);
 int smaz_compress_trie(struct Branch *trie, char *in, int inlen, char *out, int outlen);

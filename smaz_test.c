@@ -73,12 +73,7 @@ int main(void) {
     };
 
     j=0;
-    for (j = 0; j < 100000; j++) {
-        trie = buildTrie();
-        freeBranch(trie);
-    }
-    j=0;
-    trie = buildTrie();
+    trie = smaz_build_trie();
 
     /*
     printf("here: %d\n", trie->children['9'-'\n']);
@@ -160,7 +155,7 @@ int main(void) {
         printf("TEST PASSED :)\n");
     }
 
-
+    smaz_free_trie(trie);
     getchar();
     return 0;
 }
