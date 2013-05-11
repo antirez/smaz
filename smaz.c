@@ -80,15 +80,16 @@ static char *Smaz_rcb[254] = {
 "e, ", " it", "whi", " ma", "ge", "x", "e c", "men", ".com"
 };
 
-const unsigned char endLetter = 'z';
-const int noLetters = 'z' +1;
+#define END_LETTER 'z'
+#define LETTER_COUNT ('z'+1)
 
 void freeBranch(struct Branch *t) {
-    int x;
-
-    for (x = 0; x < noLetters; x++) {
-        if (t->children[x] != NULL) {
-            freeBranch(t->children[x]);
+    if (t->children != NULL) {
+        int x = 0;
+        for (x = 0; x < LETTER_COUNT; x++) {
+            if (t->children[x] != NULL) {
+                freeBranch(t->children[x]);
+            }
         }
         free(t->children);
     }
@@ -145,9 +146,8 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
 
         for (x = 0; x < smallestLen && t->shortcut[x] == remEntry[x]; x++) { }
 
-        commonPrefix = (char *)malloc(sizeof(char) * (x + 1));
+        commonPrefix = (char *)calloc(x + 1, sizeof(char));
         memcpy(commonPrefix, t->shortcut, x);
-        commonPrefix[x] = '\0';
 
         if (x < t->shortcut_length) {
             char *ttail;
@@ -160,7 +160,7 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
 
             tkey = t->shortcut[x];
 
-            newTBranch = (struct Branch *)malloc(sizeof(struct Branch) * 1);
+            newTBranch = (struct Branch *)calloc(1, sizeof(struct Branch));
             newTBranch->children = t->children;
             newTBranch->value = t->value;
             newTBranch->shortcut = ttail;
@@ -169,7 +169,7 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
             if (t->children != NULL) {
                 free(t->children);
             }
-            t->children = (struct Branch **)calloc(noLetters, sizeof(struct Branch *));
+            t->children = (struct Branch **)calloc(LETTER_COUNT, sizeof(struct Branch *));
             t->children[tkey] = newTBranch;
             free(t->shortcut);
             t->shortcut = commonPrefix;
@@ -177,6 +177,7 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
             t->value = -1;
         } else {
             /* the value of t remains */
+            free(commonPrefix);
         }
         if (x < entryLen) {
             /* we can assign the v to a child */
@@ -188,7 +189,7 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
             memcpy(vtail, &remEntry[x+1], (entryLen - x));
 
             if (t->children == NULL) {
-                t->children = (struct Branch **)calloc(noLetters, sizeof(struct Branch *));
+                t->children = (struct Branch **)calloc(LETTER_COUNT, sizeof(struct Branch *));
             }
             if (t->children[vkey] == NULL) {
                 struct Branch *newVBranch;
@@ -198,6 +199,7 @@ void addToBranch(struct Branch *t, char *remEntry, int value) {
                 t->children[vkey] = newVBranch;
             }
             addToBranch(t->children[vkey], vtail, value);
+            free(vtail);
         } else {
             /* the value of v now takes up the position */
             t->value = value;
@@ -221,7 +223,7 @@ int smaz_compress_trie(struct Branch *trie, char *in, int inlen, char *out, int 
             unsigned int nextChar;
             struct Branch **children;
             nextChar = in[length];
-            if (nextChar > endLetter) {
+            if (nextChar > END_LETTER) {
                 break;
             }
             children = branch->children;

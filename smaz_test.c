@@ -73,6 +73,11 @@ int main(void) {
     };
 
     j=0;
+    for (j = 0; j < 100000; j++) {
+        trie = buildTrie();
+        freeBranch(trie);
+    }
+    j=0;
     trie = buildTrie();
 
     /*
@@ -154,6 +159,7 @@ int main(void) {
 
         printf("TEST PASSED :)\n");
     }
+
 
     getchar();
     return 0;
