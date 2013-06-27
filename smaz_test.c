@@ -5,30 +5,31 @@
 
 #include "smaz.h"
 
-
 void hexDump (char *desc, void *addr, int len) {
     int i;
     unsigned char buff[17];
     unsigned char *pc = addr;
 
-    if (desc != NULL)
+    if (desc != NULL) {
         printf ("%s:\n", desc);
+    }
 
     for (i = 0; i < len; i++) {
 
         if ((i % 16) == 0) {
-            if (i != 0)
+            if (i != 0) {
                 printf ("  %s\n", buff);
-
+            }
             printf ("  %04x ", i);
         }
 
         printf (" %02x", pc[i]);
 
-        if ((pc[i] < 0x20) || (pc[i] > 0x7e))
+        if ((pc[i] < 0x20) || (pc[i] > 0x7e)) {
             buff[i % 16] = '.';
-        else
+        } else {
             buff[i % 16] = pc[i];
+        }
         buff[(i % 16) + 1] = '\0';
     }
 
@@ -40,6 +41,118 @@ void hexDump (char *desc, void *addr, int len) {
     printf ("  %s\n", buff);
 }
 
+char *strings[] = {
+        "ht",
+        "foobar",
+        "the end",
+        "nojQfTh",
+        "http://google.com",
+        "try it against urls",
+        "Mi illumino di immenso",
+        "http://programming.reddit.com",
+        "This is a small string",
+        "not-a-g00d-Exampl333",
+        "/media/hdb1/music/Alben/The Bla",
+        "and now a few italian sentences:",
+        "Smaz is a simple compression library",
+        "http://github.com/antirez/smaz/tree/master",
+        "L'autore di questa libreria vive in Sicilia",
+        "1000 numbers 2000 will 10 20 30 compress very little",
+        "this is an example of what works very well with smaz",
+        "Nel mezzo del cammin di nostra vita, mi ritrovai in una selva oscura",
+        "Nothing is more difficult, and therefore more precious, than to be able to decide",
+        "QtZpZuMhlzfgHFEGA.Kja/hsIayllFSAMFDl.fQ/bJdzfzCvxdclaIbzzWyhbOhCj.nydSJSbmPUzhOHYqszMhvIBqqsSluQkxLbcUuRVXmhS.CrCIBPpKXEPbyhLDLJNn.pVGFEdFmKDC VLAk.LWDqLOlmhyvviIzBOBWsWGQpIPJjftiEd updeZIZjBVrOmDPGJmcZZ CziiEeAhtvkUnYdaFuvKGvdmQnmGaZVtWCpaxpVozEWjc/HyGQFMaiMqjzKYmgPGzSxsFPuCjP JcHUinZvLWVPTSarCUUYQmSGGyPYfeXCEunngaxFxPleyZjNtClHCRdYdsxWkiopaZqU.kaINJmZiUmp",
+        NULL
+    };
+
+void test_compress_small_out_buff() {
+    char out[4096];
+    struct SmazBranch *trie;
+    int comprlen = 0;
+    /* skip over the first test string that will give us only 1 byte */
+    int j = 1;
+
+    trie = smaz_build_trie();
+    while(strings[j]) {
+        comprlen = smaz_compress_trie(
+                trie,
+                strings[j],
+                strlen(strings[j]),
+                out,
+                j
+            );
+        if (comprlen != j+1) {
+            printf("Error: Expected return size: %d, got %d\n", j+1, comprlen);
+            exit(1);
+        }
+        j++;
+    }
+
+    smaz_free_trie(trie);
+}
+
+void test_null_term() {
+    char comp_out[256];
+    char decomp_out[256];
+    char no_null_str[4] = "test";
+    char null_term_str[] = "test"; /* implicit null here */
+    int comprlen = 0;
+    int decomprlen = 0;
+    struct SmazBranch *trie;
+
+    trie = smaz_build_trie();
+    comprlen = smaz_compress_trie(
+            trie,
+            no_null_str,
+            4,
+            comp_out,
+            256
+        );
+    decomprlen = smaz_decompress(
+            comp_out,
+            comprlen,
+            decomp_out,
+            256
+        );
+    if (decomprlen != 4) {
+        printf("Error: Expected return size: %d, got %d\n", 4, decomprlen);
+        exit(1);
+    }
+    if (decomp_out[3] != 't') {
+        printf(
+                "Error: Incorrect final char on string: %c, expected %c\n",
+                decomp_out[3],
+                't'
+            );
+        exit(1);
+    }
+    comprlen = smaz_compress_trie(
+            trie,
+            null_term_str,
+            strlen(null_term_str)+1, /* include the null terminator this time. */
+            comp_out,
+            256
+        );
+    decomprlen = smaz_decompress(
+            comp_out,
+            comprlen,
+            decomp_out,
+            256
+        );
+    if (decomprlen != 5) {
+        printf("Error: Expected return size: %d, got %d\n", 5, decomprlen);
+        exit(1);
+    }
+    if (decomp_out[4] != NULL) {
+        printf( "Error: Incorrect final char on string: %c, expected NULL",
+                decomp_out[4]
+            );
+        exit(1);
+    }
+
+    smaz_free_trie(trie);
+}
+
 int main(void) {
     char in[512];
     char out[4096];
@@ -48,31 +161,11 @@ int main(void) {
     int j, ranlen, x;
     int times = 1000000;
     struct SmazBranch *trie;
-    char *strings[] = {
-        "nojQfTh",
-        "ht",
-        "QtZpZuMhlzfgHFEGA.Kja/hsIayllFSAMFDl.fQ/bJdzfzCvxdclaIbzzWyhbOhCj.nydSJSbmPUzhOHYqszMhvIBqqsSluQkxLbcUuRVXmhS.CrCIBPpKXEPbyhLDLJNn.pVGFEdFmKDC VLAk.LWDqLOlmhyvviIzBOBWsWGQpIPJjftiEd updeZIZjBVrOmDPGJmcZZ CziiEeAhtvkUnYdaFuvKGvdmQnmGaZVtWCpaxpVozEWjc/HyGQFMaiMqjzKYmgPGzSxsFPuCjP JcHUinZvLWVPTSarCUUYQmSGGyPYfeXCEunngaxFxPleyZjNtClHCRdYdsxWkiopaZqU.kaINJmZiUmp",
-        "This is a small string",
-        "foobar",
-        "the end",
-        "not-a-g00d-Exampl333",
-        "Smaz is a simple compression library",
-        "Nothing is more difficult, and therefore more precious, than to be able to decide",
-        "this is an example of what works very well with smaz",
-        "1000 numbers 2000 will 10 20 30 compress very little",
-        "and now a few italian sentences:",
-        "Nel mezzo del cammin di nostra vita, mi ritrovai in una selva oscura",
-        "Mi illumino di immenso",
-        "L'autore di questa libreria vive in Sicilia",
-        "try it against urls",
-        "http://google.com",
-        "http://programming.reddit.com",
-        "http://github.com/antirez/smaz/tree/master",
-        "/media/hdb1/music/Alben/The Bla",
-        NULL
-    };
 
     j=0;
+
+    test_compress_small_out_buff();
+    test_null_term();
     trie = smaz_build_trie();
 
     /*
