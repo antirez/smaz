@@ -1,9 +1,11 @@
 #ifndef _SMAZ_H
 #define _SMAZ_H
 
+#define SMAZ_LETTER_COUNT ('z'+1)
+
 struct SmazBranch {
     int value;
-    struct SmazBranch **children;
+    struct SmazBranch *children[SMAZ_LETTER_COUNT];
     char *shortcut;
     int shortcut_length;
 };
