@@ -1,5 +1,8 @@
-SMAZ - compression for very small strings
+Smaz
 =========================================
+
+Compression for very small strings
+----------------------------------
 
 Smaz is a simple compression library suitable for compressing very short
 strings. General purpose compression libraries will build the state needed
@@ -69,7 +72,8 @@ compressed string didn't included a nulterm.
 Credits
 -------
 
-SMAZ was written by Salvatore Sanfilippo and is released under the BSD license.
+Smaz was written by Salvatore Sanfilippo and is released under the BSD license.
 Check the COPYING file for more information.
 
+Trie-based implementation by Richard Johnson, released under the same BSD license.
 

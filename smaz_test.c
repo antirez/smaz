@@ -41,6 +41,13 @@ void hexDump (char *desc, void *addr, int len) {
     printf ("  %s\n", buff);
 }
 
+int g_seed = 0;
+
+int fastrand() { 
+    g_seed = (214013 * g_seed + 2531011); 
+    return (g_seed >> 16) & 0x7FFF; 
+} 
+
 char *strings[] = {
         "ht",
         "foobar",
@@ -89,6 +96,8 @@ void test_compress_small_out_buff() {
     }
 
     smaz_free_trie(trie);
+
+    printf("TEST PASSED :)\n");
 }
 
 void test_null_term() {
@@ -143,54 +152,137 @@ void test_null_term() {
         printf("Error: Expected return size: %d, got %d\n", 5, decomprlen);
         exit(1);
     }
-    if (decomp_out[4] != NULL) {
-        printf( "Error: Incorrect final char on string: %c, expected NULL",
+    if (decomp_out[4] != 0) {
+        printf( "Error: Incorrect final char on string: %c, expected \\0\n",
                 decomp_out[4]
             );
         exit(1);
     }
 
     smaz_free_trie(trie);
+
+    printf("TEST PASSED :)\n");
 }
 
-int main(void) {
-    char in[512];
+void bench_trie_smaz() {
+    FILE    *infile;
+    char    *in;
+    char    *comp_out;
+    char    *de_comp_out;
+    long    numbytes;
+    int     num_loops = 1000;
+
+    infile = fopen("war_of_the_worlds.txt", "r");
+    if (infile == NULL) {
+        printf("Missing war of the worlds text, you can download the text here: http://www.gutenberg.org/ebooks/36 and save it as war_of_the_worlds.txt\n");
+        exit(1);
+    }
+
+    fseek(infile, 0L, SEEK_END);
+    numbytes = ftell(infile);
+    printf("Processing %d bytes, %d times\n", (int)numbytes, num_loops);
+    fseek(infile, 0L, SEEK_SET);	
+    in = (char*)calloc(numbytes, sizeof(char));	
+    comp_out = (char*)calloc(numbytes, sizeof(char));	
+    de_comp_out = (char*)calloc(numbytes, sizeof(char));	
+    numbytes = fread(in, sizeof(char), numbytes, infile);
+    fclose(infile);
+
+    {
+        struct timeval t1, t2;
+        int x;
+        struct SmazBranch *trie;
+
+        trie = smaz_build_trie();
+
+        gettimeofday(&t1, NULL);
+        for (x = 0; x < num_loops; x++) {
+            smaz_compress_trie(
+                    trie,
+                    in,
+                    numbytes,
+                    comp_out,
+                    numbytes
+                );
+        }
+        gettimeofday(&t2, NULL);
+        printf("time = %u.%06u\n", (unsigned int)t1.tv_sec, (unsigned int)t1.tv_usec);
+        printf("time = %u.%06u\n", (unsigned int)t2.tv_sec, (unsigned int)t2.tv_usec);
+
+        smaz_free_trie(trie);
+    }
+
+    free(in);
+    free(comp_out);
+    free(de_comp_out);
+}
+
+void bench_old_smaz() {
+    FILE    *infile;
+    char    *in;
+    char    *comp_out;
+    char    *de_comp_out;
+    long    numbytes;
+    int     num_loops = 1000;
+
+    infile = fopen("war_of_the_worlds.txt", "r");
+    if (infile == NULL) {
+        printf("Missing war of the worlds text, you can download the text here: http://www.gutenberg.org/ebooks/36 and save it as war_of_the_worlds.txt\n");
+        exit(1);
+    }
+
+    fseek(infile, 0L, SEEK_END);
+    numbytes = ftell(infile);
+    printf("Processing %d bytes, %d times\n", (int)numbytes, num_loops);
+    fseek(infile, 0L, SEEK_SET);	
+    in = (char*)calloc(numbytes, sizeof(char));	
+    comp_out = (char*)calloc(numbytes, sizeof(char));	
+    de_comp_out = (char*)calloc(numbytes, sizeof(char));	
+    numbytes = fread(in, sizeof(char), numbytes, infile);
+    fclose(infile);
+
+    {
+        struct timeval t1, t2;
+        int x;
+
+        gettimeofday(&t1, NULL);
+        for (x = 0; x < num_loops; x++) {
+            smaz_compress(
+                    in,
+                    numbytes,
+                    comp_out,
+                    numbytes
+                );
+        }
+        gettimeofday(&t2, NULL);
+        printf("time = %u.%06u\n", (unsigned int)t1.tv_sec, (unsigned int)t1.tv_usec);
+        printf("time = %u.%06u\n", (unsigned int)t2.tv_sec, (unsigned int)t2.tv_usec);
+    }
+
+    free(in);
+    free(comp_out);
+    free(de_comp_out);
+}
+
+void test_strings() {
     char out[4096];
     char d[4096];
     int comprlen, decomprlen;
-    int j, ranlen, x;
-    int times = 1000000;
     struct SmazBranch *trie;
+    int j = 0;
 
-    j=0;
-
-    test_compress_small_out_buff();
-    test_null_term();
     trie = smaz_build_trie();
-
-    /*
-    printf("here: %d\n", trie->children['9'-'\n']);
-    exit(0);
-    trie = newTrie();
-    addToBranch(trie, "f", 1);
-    addToBranch(trie, "for", 3);
-    addToBranch(trie, "fo", 2);
-    exit(0);
-    for (x = 0; x < 'z' - '\n'; x++) {
-        printf("here: %c %d\n", x+'\n', trie->children['o'-'\n']->children[x]);
-    }
-    printf("here: '%s'\n", trie->children['f'-'\n']->children['o'-'\n']->shortcut);
-    */
-
 
     while(strings[j]) {
         int comprlevel;
-        int comprlen2;
 
-        comprlen = smaz_compress_trie(trie, strings[j],strlen(strings[j]),out,sizeof(out));
-        /*hexDump("out bad", &out, 400);*/
-        comprlen2 = smaz_compress(strings[j],strlen(strings[j]),out,sizeof(out));
-        /*hexDump("out good", &out, 400);*/
+        comprlen = smaz_compress_trie(
+                trie,
+                strings[j],
+                strlen(strings[j]),
+                out,
+                sizeof(out)
+            );
         comprlevel = 100-((100*comprlen)/strlen(strings[j]));
         decomprlen = smaz_decompress(out,comprlen,d,sizeof(d));
         if (strlen(strings[j]) != (unsigned)decomprlen ||
@@ -206,49 +298,142 @@ int main(void) {
         }
         j++;
     }
+
+    smaz_free_trie(trie);
+
+    printf("TEST PASSED :)\n");
+}
+
+void test_random() {
+    char in[512];
+    char out[4096];
+    char d[4096];
+    int comprlen, decomprlen;
+    int j, ranlen = 0;
+    int times = 1000000;
+    struct SmazBranch *trie;
+
+    g_seed = 0;
+    trie = smaz_build_trie();
+
     printf("Encrypting and decrypting %d test strings...\n", times);
-    {
-        struct timeval t1, t2;
-        double elapsedTime;
+    while(times--) {
+        char charset[]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvxyz/. ";
+        ranlen = fastrand() % 512;
+        /*printf("doing %d\n", times);*/
 
-        gettimeofday(&t1, NULL);
-        while(times--) {
-            char charset[]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvxyz/. ";
-            ranlen = random() % 512;
-            /*printf("doing %d\n", times);*/
-
-            for (j = 0; j < ranlen; j++) {
-                if (times & 1)
-                    in[j] = charset[random() % (sizeof(charset)-1)];
-                else
-                    in[j] = (char)(random() & 0xff);
-            }
-
-            comprlen = smaz_compress_trie(trie, in,ranlen,out,sizeof(out));
-            /*comprlen = smaz_compress(in,ranlen,out,sizeof(out));*/
-            decomprlen = smaz_decompress(out,comprlen,d,sizeof(out));
-
-            if (ranlen != decomprlen || memcmp(in,d,ranlen)) {
-                printf("Bug! TEST NOT PASSED\n");
-                hexDump("in", &in, ranlen);
-                hexDump("out bad", &out, comprlen);
-                comprlen = smaz_compress(in,ranlen,out,sizeof(out));
-                hexDump("out good", &out, comprlen);
-                exit(1);
-            }
+        for (j = 0; j < ranlen; j++) {
+            if (times & 1)
+                in[j] = charset[fastrand() % (sizeof(charset)-1)];
+            else
+                in[j] = (char)(fastrand() & 0xff);
         }
-        
-        gettimeofday(&t2, NULL);
-        
-        /*elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0; 
-        elapsedTime += (t2.tv_usec - t1.tv_usec) / 1000.0;*/
-        printf("time = %u.%06u\n", t1.tv_sec, t1.tv_usec);
-        printf("time = %u.%06u\n", t2.tv_sec, t2.tv_usec);
 
-        printf("TEST PASSED :)\n");
+        comprlen = smaz_compress_trie(trie, in,ranlen,out,sizeof(out));
+        /*comprlen = smaz_compress(in,ranlen,out,sizeof(out));*/
+        decomprlen = smaz_decompress(out,comprlen,d,sizeof(out));
+
+        if (ranlen != decomprlen || memcmp(in,d,ranlen)) {
+            printf("Bug! TEST NOT PASSED\n");
+            hexDump("in", &in, ranlen);
+            hexDump("out bad", &out, comprlen);
+            comprlen = smaz_compress(in,ranlen,out,sizeof(out));
+            hexDump("out good", &out, comprlen);
+            exit(1);
+        }
     }
 
     smaz_free_trie(trie);
-    getchar();
+
+    printf("TEST PASSED :)\n");
+}
+
+void bench_random_old_smaz() {
+    char in[512];
+    char out[4096];
+    int j, ranlen = 0;
+    int times = 1000000;
+    struct timeval t1, t2;
+
+    g_seed = 0;
+
+    printf("Encrypting and decrypting %d test strings...\n", times);
+    gettimeofday(&t1, NULL);
+
+    while(times--) {
+        char charset[]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvxyz/. ";
+        ranlen = fastrand() % 512;
+        /*printf("doing %d\n", times);*/
+
+        for (j = 0; j < ranlen; j++) {
+            if (times & 1)
+                in[j] = charset[fastrand() % (sizeof(charset)-1)];
+            else
+                in[j] = (char)(fastrand() & 0xff);
+        }
+        smaz_compress(in,ranlen,out,sizeof(out));
+    }
+    gettimeofday(&t2, NULL);
+    
+    printf("time = %u.%06u\n", (unsigned int)t1.tv_sec, (unsigned int)t1.tv_usec);
+    printf("time = %u.%06u\n", (unsigned int)t2.tv_sec, (unsigned int)t2.tv_usec);
+}
+
+void bench_random_trie() {
+    char in[512];
+    char out[4096];
+    int j, ranlen = 0;
+    int times = 1000000;
+    struct SmazBranch *trie;
+    struct timeval t1, t2;
+
+    g_seed = 0;
+
+    trie = smaz_build_trie();
+
+    printf("Encrypting and decrypting %d test strings...\n", times);
+    gettimeofday(&t1, NULL);
+
+    while(times--) {
+        char charset[]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvxyz/. ";
+        ranlen = fastrand() % 512;
+        /*printf("doing %d\n", times);*/
+
+        for (j = 0; j < ranlen; j++) {
+            if (times & 1)
+                in[j] = charset[fastrand() % (sizeof(charset)-1)];
+            else
+                in[j] = (char)(fastrand() & 0xff);
+        }
+        smaz_compress_trie(trie, in,ranlen,out,sizeof(out));
+    }
+    gettimeofday(&t2, NULL);
+    
+    printf("time = %u.%06u\n", (unsigned int)t1.tv_sec, (unsigned int)t1.tv_usec);
+    printf("time = %u.%06u\n", (unsigned int)t2.tv_sec, (unsigned int)t2.tv_usec);
+
+    smaz_free_trie(trie);
+}
+
+int main(void) {
+
+    printf("Testing result when using too smaller buffer:\n-------------\n");
+    test_compress_small_out_buff();
+    printf("\n\nTesting null terminators stay there:\n-------------\n");
+    test_null_term();
+    printf("\n\nTesting a bunch of predefined strings:\n-------------\n");
+    test_strings();
+    printf("\n\nTesting a bunch of randomly generated strings:\n-------------\n");
+    test_random();
+    printf("\n\nBenchmarking old smaz on war of the worlds:\n-------------\n");
+    bench_old_smaz();
+    printf("\n\nBenchmarking new smaz on war of the worlds:\n-------------\n");
+    bench_trie_smaz();
+    printf("\n\nBenchmarking old smaz on random data:\n-------------\n");
+    bench_random_old_smaz();
+    printf("\n\nBenchmarking new smaz on random data:\n-------------\n");
+    bench_random_trie();
+    printf("\n\nDone.\n");
+
     return 0;
 }
