@@ -106,12 +106,12 @@ void smaz_add_to_branch(struct SmazBranch *t, char *remEntry, int value) {
     int entryLen;
     entryLen = strlen(remEntry);
 
-    if (t->shortcut == NULL) {
-        t->shortcut = (char *)calloc(entryLen+1, sizeof(char));
+    if (t->use_shortcut == 0) {
+        /*t->shortcut = (char *)calloc(entryLen+1, sizeof(char));*/
         t->shortcut_length = entryLen;
         memcpy(t->shortcut, remEntry, entryLen);
-        t->shortcut[entryLen] = '\0';
         t->value = value;
+        t->use_shortcut = 1;
         return;
     }
 
@@ -137,29 +137,38 @@ void smaz_add_to_branch(struct SmazBranch *t, char *remEntry, int value) {
             int tkey;
             struct SmazBranch *newTBranch;
 
+            
+            tkey = (int)t->shortcut[x];
+
+            newTBranch = &g_trie[g_branch_counter++];
+            memcpy(
+                    newTBranch->children,
+                    t->children,
+                    SMAZ_LETTER_COUNT * sizeof(struct SmazBranch *)
+                );
+            memset(t->children, 0, SMAZ_LETTER_COUNT * sizeof(struct SmazBranch *));
+
+            newTBranch->value = t->value;
 
             ttail = (char *)calloc((t->shortcut_length - x + 1), sizeof(char));
             memcpy(ttail, &t->shortcut[x+1], (t->shortcut_length - x));
+            memcpy(&newTBranch->shortcut[0], &t->shortcut[x+1], (t->shortcut_length - x));
+            if (strlen(ttail) != strlen(newTBranch->shortcut)) {
+                printf("WTF?\n");
+                exit(1);
+            }
 
-            tkey = t->shortcut[x];
-
-            /*newTBranch = (struct SmazBranch *)calloc(1, sizeof(struct SmazBranch));*/
-            newTBranch = &g_trie[g_branch_counter++];
-            /*newTBranch->children = t->children; */
-            memcpy(newTBranch->children, t->children, SMAZ_LETTER_COUNT * sizeof(struct SmazBranch *));
-            memset(t->children, 0, SMAZ_LETTER_COUNT * sizeof(struct SmazBranch *));
-            newTBranch->value = t->value;
-            newTBranch->shortcut = ttail;
-            newTBranch->shortcut_length = strlen(ttail);
+            newTBranch->shortcut_length = strlen(newTBranch->shortcut);
 
             t->children[tkey] = newTBranch;
-            free(t->shortcut);
-            t->shortcut = commonPrefix;
-            t->shortcut_length = strlen(commonPrefix);
+            /*free(t->shortcut);*/
+            /*t->shortcut = commonPrefix;*/
+            t->shortcut[x] = 0;
+            t->shortcut_length = strlen(t->shortcut);
             t->value = -1;
         } else {
-            /* the value of t remains */
-            free(commonPrefix);
+            /* the value of t remains 
+            free(commonPrefix);*/
         }
         if (x < entryLen) {
             /* we can assign the v to a child */

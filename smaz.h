@@ -4,10 +4,11 @@
 #define SMAZ_LETTER_COUNT ('z'+1)
 
 struct SmazBranch {
-    int value;
     struct SmazBranch *children[SMAZ_LETTER_COUNT];
-    char *shortcut;
+    char shortcut[12];
+    int use_shortcut;
     int shortcut_length;
+    int value;
 };
 
 struct SmazBranch *smaz_build_trie();

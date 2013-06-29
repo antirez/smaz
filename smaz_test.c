@@ -49,6 +49,7 @@ int fastrand() {
 } 
 
 char *strings[] = {
+        " ",
         "ht",
         "foobar",
         "the end",
@@ -69,6 +70,7 @@ char *strings[] = {
         "Nel mezzo del cammin di nostra vita, mi ritrovai in una selva oscura",
         "Nothing is more difficult, and therefore more precious, than to be able to decide",
         "QtZpZuMhlzfgHFEGA.Kja/hsIayllFSAMFDl.fQ/bJdzfzCvxdclaIbzzWyhbOhCj.nydSJSbmPUzhOHYqszMhvIBqqsSluQkxLbcUuRVXmhS.CrCIBPpKXEPbyhLDLJNn.pVGFEdFmKDC VLAk.LWDqLOlmhyvviIzBOBWsWGQpIPJjftiEd updeZIZjBVrOmDPGJmcZZ CziiEeAhtvkUnYdaFuvKGvdmQnmGaZVtWCpaxpVozEWjc/HyGQFMaiMqjzKYmgPGzSxsFPuCjP JcHUinZvLWVPTSarCUUYQmSGGyPYfeXCEunngaxFxPleyZjNtClHCRdYdsxWkiopaZqU.kaINJmZiUmp",
+        "oTnBmdtIaFEFHFpgqkGlYdCtqIXFTKIPfJsdIotaZ/oUGWaKHmBzzMQyKteDKLXHedxalAfHzAQTgesqyLzo/.rjxQzbWZPzUbqdnuceRejfVz/xpDBfCGUUdlLYkSyt.uRv.dQaJEW.bPsJrQWjNBbKLFbdLmauPiCdEVHgXKIZazGSriVrjQs.H.itMHFJDuajeCqOtKZFJdyUtEEqbbj.s.FQkAyXHdjHoQxDWvnFfgBMLXtFKJZvnRMiUfAgMJbH/TsXzMSKdlOHkxAJPWD//QbmuNyQWAHVIevtohUfRbCktvHfSuopjQSTWl/fpV/tNMCCSWOINMGptyRBZNobtdL.KMzKqvnnu.A.jWgOMtLrrHpcCB.GLIREreLBK.BsYABRttLHo/QhDrZNSzJPZQR.nPJEJvHMX/sO/H.tksygrsDlCIzyJMR.O.scMfNcfKufJrbeJYcALDfxRYHKTPLmmUeTe",
         NULL
     };
 
@@ -267,6 +269,7 @@ void bench_old_smaz() {
 
 void test_strings() {
     char out[4096];
+    char out_good[4096];
     char d[4096];
     int comprlen, decomprlen;
     struct SmazBranch *trie;
@@ -275,7 +278,7 @@ void test_strings() {
     trie = smaz_build_trie();
 
     while(strings[j]) {
-        int comprlevel;
+        int comprlevel, comprlen_good;
 
         comprlen = smaz_compress_trie(
                 trie,
@@ -284,12 +287,25 @@ void test_strings() {
                 out,
                 sizeof(out)
             );
+
+        comprlen_good = smaz_compress(
+                strings[j],
+                strlen(strings[j]),
+                out_good,
+                sizeof(out_good)
+            );
+
         comprlevel = 100-((100*comprlen)/strlen(strings[j]));
         decomprlen = smaz_decompress(out,comprlen,d,sizeof(d));
-        if (strlen(strings[j]) != (unsigned)decomprlen ||
+
+        if (comprlen != comprlen_good ||
+            strlen(strings[j]) != (unsigned)decomprlen ||
             memcmp(strings[j],d,decomprlen))
         {
             printf("BUG: error compressing '%s'\n", strings[j]);
+            hexDump("in", strings[j], strlen(strings[j]));
+            hexDump("out bad", &out, comprlen);
+            hexDump("out good", &out_good, comprlen_good);
             exit(1);
         }
         if (comprlevel < 0) {
@@ -333,9 +349,8 @@ void test_random() {
         comprlen = smaz_compress_trie(trie, in,ranlen,out,sizeof(out));
         /*comprlen = smaz_compress(in,ranlen,out,sizeof(out));*/
         decomprlen = smaz_decompress(out,comprlen,d,sizeof(out));
-
         if (ranlen != decomprlen || memcmp(in,d,ranlen)) {
-            printf("Bug! TEST NOT PASSED\n");
+            printf("Bug! TEST NOT PASSED: %d\n", 1000000-times);
             hexDump("in", &in, ranlen);
             hexDump("out bad", &out, comprlen);
             comprlen = smaz_compress(in,ranlen,out,sizeof(out));
@@ -417,9 +432,15 @@ void bench_random_trie() {
 }
 
 int main(void) {
+    /*
+    struct SmazBranch *trie;
+    trie = smaz_build_trie();
+    printf("val: %d\n", trie[0].children[' ']->value);
+    exit(0);
+    */
 
-    printf("Testing result when using too smaller buffer:\n-------------\n");
-    test_compress_small_out_buff();
+    /*printf("Testing result when using too smaller buffer:\n-------------\n");
+    test_compress_small_out_buff();*/
     printf("\n\nTesting null terminators stay there:\n-------------\n");
     test_null_term();
     printf("\n\nTesting a bunch of predefined strings:\n-------------\n");
