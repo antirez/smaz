@@ -107,7 +107,6 @@ void smaz_add_to_branch(struct SmazBranch *t, char *remEntry, int value) {
     entryLen = strlen(remEntry);
 
     if (t->use_shortcut == 0) {
-        /*t->shortcut = (char *)calloc(entryLen+1, sizeof(char));*/
         t->shortcut_length = entryLen;
         memcpy(t->shortcut, remEntry, entryLen);
         t->value = value;
@@ -121,7 +120,6 @@ void smaz_add_to_branch(struct SmazBranch *t, char *remEntry, int value) {
     } else {
         int smallestLen = entryLen;
         int x;
-        char *commonPrefix;
 
         if (smallestLen > t->shortcut_length) {
             smallestLen = t->shortcut_length;
@@ -129,14 +127,9 @@ void smaz_add_to_branch(struct SmazBranch *t, char *remEntry, int value) {
 
         for (x = 0; x < smallestLen && t->shortcut[x] == remEntry[x]; x++) { }
 
-        commonPrefix = (char *)calloc(x + 1, sizeof(char));
-        memcpy(commonPrefix, t->shortcut, x);
-
         if (x < t->shortcut_length) {
-            char *ttail;
             int tkey;
             struct SmazBranch *newTBranch;
-
             
             tkey = (int)t->shortcut[x];
 
@@ -150,25 +143,17 @@ void smaz_add_to_branch(struct SmazBranch *t, char *remEntry, int value) {
 
             newTBranch->value = t->value;
 
-            ttail = (char *)calloc((t->shortcut_length - x + 1), sizeof(char));
-            memcpy(ttail, &t->shortcut[x+1], (t->shortcut_length - x));
             memcpy(&newTBranch->shortcut[0], &t->shortcut[x+1], (t->shortcut_length - x));
-            if (strlen(ttail) != strlen(newTBranch->shortcut)) {
-                printf("WTF?\n");
-                exit(1);
-            }
 
             newTBranch->shortcut_length = strlen(newTBranch->shortcut);
+            newTBranch->use_shortcut = 1;
 
             t->children[tkey] = newTBranch;
-            /*free(t->shortcut);*/
-            /*t->shortcut = commonPrefix;*/
             t->shortcut[x] = 0;
             t->shortcut_length = strlen(t->shortcut);
             t->value = -1;
         } else {
-            /* the value of t remains 
-            free(commonPrefix);*/
+            /* the value of t remains */
         }
         if (x < entryLen) {
             /* we can assign the v to a child */
@@ -181,10 +166,8 @@ void smaz_add_to_branch(struct SmazBranch *t, char *remEntry, int value) {
 
             if (t->children[vkey] == NULL) {
                 struct SmazBranch *newVBranch;
-                /*newVBranch = (struct SmazBranch *)calloc(1, sizeof(struct SmazBranch));*/
                 newVBranch = &g_trie[g_branch_counter++];
                 newVBranch->value = -1;
-                /*printf("asdf: %c\n", vkey+'\n');*/
                 t->children[vkey] = newVBranch;
             }
             smaz_add_to_branch(t->children[vkey], vtail, value);
