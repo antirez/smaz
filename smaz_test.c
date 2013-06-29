@@ -150,6 +150,7 @@ void test_null_term() {
         );
     if (decomprlen != 5) {
         printf("Error: Expected return size: %d, got %d\n", 5, decomprlen);
+        hexDump("out", &decomp_out, decomprlen);
         exit(1);
     }
     if (decomp_out[4] != 0) {

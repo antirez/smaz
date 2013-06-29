@@ -83,6 +83,7 @@ static char *Smaz_rcb[254] = {
 #define SMAZ_END_LETTER 'z'
 
 void smaz_free_trie(struct SmazBranch *t) {
+    /*
     if (t->children != NULL) {
         int x = 0;
         for (x = 0; x < SMAZ_LETTER_COUNT; x++) {
@@ -94,8 +95,12 @@ void smaz_free_trie(struct SmazBranch *t) {
     if (t->shortcut != NULL) {
         free(t->shortcut);
     }
+    */
     free(t);
 }
+
+int g_branch_counter = 0;
+struct SmazBranch *g_trie;
 
 void smaz_add_to_branch(struct SmazBranch *t, char *remEntry, int value) {
     int entryLen;
@@ -138,7 +143,8 @@ void smaz_add_to_branch(struct SmazBranch *t, char *remEntry, int value) {
 
             tkey = t->shortcut[x];
 
-            newTBranch = (struct SmazBranch *)calloc(1, sizeof(struct SmazBranch));
+            /*newTBranch = (struct SmazBranch *)calloc(1, sizeof(struct SmazBranch));*/
+            newTBranch = &g_trie[g_branch_counter++];
             /*newTBranch->children = t->children; */
             memcpy(newTBranch->children, t->children, SMAZ_LETTER_COUNT * sizeof(struct SmazBranch *));
             memset(t->children, 0, SMAZ_LETTER_COUNT * sizeof(struct SmazBranch *));
@@ -166,7 +172,8 @@ void smaz_add_to_branch(struct SmazBranch *t, char *remEntry, int value) {
 
             if (t->children[vkey] == NULL) {
                 struct SmazBranch *newVBranch;
-                newVBranch = (struct SmazBranch *)calloc(1, sizeof(struct SmazBranch));
+                /*newVBranch = (struct SmazBranch *)calloc(1, sizeof(struct SmazBranch));*/
+                newVBranch = &g_trie[g_branch_counter++];
                 newVBranch->value = -1;
                 /*printf("asdf: %c\n", vkey+'\n');*/
                 t->children[vkey] = newVBranch;
@@ -184,13 +191,15 @@ struct SmazBranch *smaz_build_custom_trie(char *codebook[254]) {
     struct SmazBranch *trie;
     int x;
 
-    trie = (struct SmazBranch *)calloc(1, sizeof(struct SmazBranch));
-    trie->value = -1;
+    trie = (struct SmazBranch *)calloc(255, sizeof(struct SmazBranch));
+    trie[0].value = -1;
+    g_branch_counter = 1;
+    g_trie = trie;
 
     for (x = 0; x < 254; x++) {
-        smaz_add_to_branch(trie, codebook[x], x);
+        smaz_add_to_branch(&trie[0], codebook[x], x);
     }
-    return trie;
+    return &trie[0];
 }
 
 struct SmazBranch *smaz_build_trie() {
