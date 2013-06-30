@@ -49,7 +49,6 @@ int fastrand() {
 } 
 
 char *strings[] = {
-        " ",
         "ht",
         "foobar",
         "the end",
@@ -431,22 +430,137 @@ void bench_random_trie() {
     smaz_free_trie(trie);
 }
 
-int main(void) {
-    /*
-    struct SmazBranch *trie;
-    trie = smaz_build_trie();
-    printf("val: %d\n", trie[0].children[' ']->value);
-    exit(0);
-    */
+/* Reverse compression codebook, used for decompression */
+static char *Smaz_rcb[254] = {
+" ", "the", "e", "t", "a", "of", "o", "and", "i", "n", "s", "e ", "r", " th",
+" t", "in", "he", "th", "h", "he ", "to", "\r\n", "l", "s ", "d", " a", "an",
+"er", "c", " o", "d ", "on", " of", "re", "of ", "t ", ", ", "is", "u", "at",
+"   ", "n ", "or", "which", "f", "m", "as", "it", "that", "\n", "was", "en",
+"  ", " w", "es", " an", " i", "\r", "f ", "g", "p", "nd", " s", "nd ", "ed ",
+"w", "ed", "http://", "for", "te", "ing", "y ", "The", " c", "ti", "r ", "his",
+"st", " in", "ar", "nt", ",", " to", "y", "ng", " h", "with", "le", "al", "to ",
+"b", "ou", "be", "were", " b", "se", "o ", "ent", "ha", "ng ", "their", "\"",
+"hi", "from", " f", "in ", "de", "ion", "me", "v", ".", "ve", "all", "re ",
+"ri", "ro", "is ", "co", "f t", "are", "ea", ". ", "her", " m", "er ", " p",
+"es ", "by", "they", "di", "ra", "ic", "not", "s, ", "d t", "at ", "ce", "la",
+"h ", "ne", "as ", "tio", "on ", "n t", "io", "we", " a ", "om", ", a", "s o",
+"ur", "li", "ll", "ch", "had", "this", "e t", "g ", "e\r\n", " wh", "ere",
+" co", "e o", "a ", "us", " d", "ss", "\n\r\n", "\r\n\r", "=\"", " be", " e",
+"s a", "ma", "one", "t t", "or ", "but", "el", "so", "l ", "e s", "s,", "no",
+"ter", " wa", "iv", "ho", "e a", " r", "hat", "s t", "ns", "ch ", "wh", "tr",
+"ut", "/", "have", "ly ", "ta", " ha", " on", "tha", "-", " l", "ati", "en ",
+"pe", " re", "there", "ass", "si", " fo", "wa", "ec", "our", "who", "its", "z",
+"fo", "rs", ">", "ot", "un", "<", "im", "th ", "nc", "ate", "><", "ver", "ad",
+" we", "ly", "ee", " n", "id", " cl", "ac", "il", "</", "rt", " wi", "div",
+"e, ", " it", "whi", " ma", "ge", "x", "e c", "men", ".com"
+};
 
-    /*printf("Testing result when using too smaller buffer:\n-------------\n");
-    test_compress_small_out_buff();*/
+void bench_random_compressible() {
+    char **in;
+    char out[2048];
+    int x = 0;
+    int times = 500000;
+    struct SmazBranch *trie;
+    struct timeval t1, t2;
+
+    g_seed = 0;
+    trie = smaz_build_trie();
+
+    printf("Creating compressible strings\n");
+    in = (char **)calloc(times+1, sizeof(char *));
+    for (x = 0; x < times; x++) {
+        int charlen = 0;
+        in[x] = (char *)calloc(1024, sizeof(char));
+        /* 7 being the longest possible string */
+        while (charlen < (1024 - 7)) {
+            char *val = Smaz_rcb[fastrand() % 254];
+            memcpy(in[x]+charlen, val, strlen(val));
+            charlen += strlen(val);
+        }
+    }
+
+    printf("Encrypting and decrypting %d test strings...\n", times);
+    gettimeofday(&t1, NULL);
+
+    while (times--) {
+        smaz_compress_trie(
+                trie,
+                in[times],
+                strlen(in[times]),
+                out,
+                sizeof(out)
+            );
+    }
+    gettimeofday(&t2, NULL);
+    
+    printf("time = %u.%06u\n", (unsigned int)t1.tv_sec, (unsigned int)t1.tv_usec);
+    printf("time = %u.%06u\n", (unsigned int)t2.tv_sec, (unsigned int)t2.tv_usec);
+
+    for (x = 0; x < times; x++) {
+        free(in[x]);
+    }
+    free(in);
+    smaz_free_trie(trie);
+}
+
+void bench_random_compressible_old() {
+    char **in;
+    char out[2048];
+    int x = 0;
+    int times = 500000;
+    struct timeval t1, t2;
+
+    g_seed = 0;
+
+    printf("Creating compressible strings\n");
+    in = (char **)calloc(times+1, sizeof(char *));
+    for (x = 0; x < times; x++) {
+        int charlen = 0;
+        in[x] = (char *)calloc(1024, sizeof(char));
+        /* 7 being the longest possible string */
+        while (charlen < (1024 - 7)) {
+            char *val = Smaz_rcb[fastrand() % 254];
+            memcpy(in[x]+charlen, val, strlen(val));
+            charlen += strlen(val);
+        }
+    }
+
+    printf("Encrypting and decrypting %d test strings...\n", times);
+    gettimeofday(&t1, NULL);
+
+    while (times--) {
+        smaz_compress(
+                in[times],
+                strlen(in[times]),
+                out,
+                sizeof(out)
+            );
+    }
+    gettimeofday(&t2, NULL);
+    
+    printf("time = %u.%06u\n", (unsigned int)t1.tv_sec, (unsigned int)t1.tv_usec);
+    printf("time = %u.%06u\n", (unsigned int)t2.tv_sec, (unsigned int)t2.tv_usec);
+
+    for (x = 0; x < times; x++) {
+        free(in[x]);
+    }
+    free(in);
+}
+
+int main(void) {
+
+    printf("\n\nTesting result when using too smaller buffer:\n-------------\n");
+    test_compress_small_out_buff();
     printf("\n\nTesting null terminators stay there:\n-------------\n");
     test_null_term();
     printf("\n\nTesting a bunch of predefined strings:\n-------------\n");
     test_strings();
     printf("\n\nTesting a bunch of randomly generated strings:\n-------------\n");
     test_random();
+    printf("\n\nBenchmarking old smaz with very compressible data:\n-------------\n");
+    bench_random_compressible_old();
+    printf("\n\nBenchmarking new smaz with very compressible data:\n-------------\n");
+    bench_random_compressible();
     printf("\n\nBenchmarking old smaz on war of the worlds:\n-------------\n");
     bench_old_smaz();
     printf("\n\nBenchmarking new smaz on war of the worlds:\n-------------\n");
