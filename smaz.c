@@ -1,4 +1,9 @@
+#include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+#include <assert.h>
+
+#include "smaz.h"
 
 /* Our compression codebook, used for compression */
 static char *Smaz_cb[241] = {
@@ -76,7 +81,224 @@ static char *Smaz_rcb[254] = {
 "e, ", " it", "whi", " ma", "ge", "x", "e c", "men", ".com"
 };
 
-int smaz_compress(char *in, int inlen, char *out, int outlen) {
+#define SMAZ_END_LETTER 'z'
+
+void smaz_free_trie(struct SmazBranch *t) {
+    /*
+    if (t->children != NULL) {
+        int x = 0;
+        for (x = 0; x < SMAZ_LETTER_COUNT; x++) {
+            if (t->children[x] != NULL) {
+                smaz_free_trie(t->children[x]);
+            }
+        }
+    }
+    if (t->shortcut != NULL) {
+        free(t->shortcut);
+    }
+    */
+    free(t);
+}
+
+
+void smaz_add_to_branch(struct SmazBranch *t, char *remEntry, int value, struct SmazBranch *g_trie, int *g_branch_counter) {
+    int entryLen;
+    entryLen = strlen(remEntry);
+
+    if (t->use_shortcut == 0) {
+        t->shortcut_length = entryLen;
+        memcpy(t->shortcut, remEntry, entryLen);
+        t->value = value;
+        t->use_shortcut = 1;
+        return;
+    }
+
+    if (entryLen == 0 && t->shortcut_length == 0) {
+        t->value = value;
+        return;
+    } else {
+        int smallestLen = entryLen;
+        int x;
+
+        if (smallestLen > t->shortcut_length) {
+            smallestLen = t->shortcut_length;
+        }
+
+        for (x = 0; x < smallestLen && t->shortcut[x] == remEntry[x]; x++) { }
+
+        if (x < t->shortcut_length) {
+            int tkey;
+            struct SmazBranch *newTBranch;
+            
+            tkey = (int)t->shortcut[x];
+
+            *g_branch_counter = *g_branch_counter+1;
+            assert(*g_branch_counter < 256);
+            newTBranch = &g_trie[*g_branch_counter];
+            memcpy(
+                    newTBranch->children,
+                    t->children,
+                    SMAZ_LETTER_COUNT * sizeof(struct SmazBranch *)
+                );
+            memset(t->children, 0, SMAZ_LETTER_COUNT * sizeof(struct SmazBranch *));
+
+            newTBranch->value = t->value;
+
+            memcpy(&newTBranch->shortcut[0], &t->shortcut[x+1], (t->shortcut_length - x));
+
+            newTBranch->shortcut_length = strlen(newTBranch->shortcut);
+            newTBranch->use_shortcut = 1;
+
+            t->children[tkey] = newTBranch;
+            t->shortcut[x] = 0;
+            t->shortcut_length = strlen(t->shortcut);
+            t->value = -1;
+        } else {
+            /* the value of t remains */
+        }
+        if (x < entryLen) {
+            /* we can assign the v to a child */
+            int vkey;
+            char *vtail;
+
+            vkey = remEntry[x];
+            vtail = (char *)calloc((entryLen - x + 1), sizeof(char));
+            memcpy(vtail, &remEntry[x+1], (entryLen - x));
+
+            if (t->children[vkey] == NULL) {
+                struct SmazBranch *newVBranch;
+                *g_branch_counter = *g_branch_counter+1;
+                assert(*g_branch_counter < 256);
+                newVBranch = &g_trie[*g_branch_counter];
+                newVBranch->value = -1;
+                t->children[vkey] = newVBranch;
+            }
+            smaz_add_to_branch(t->children[vkey], vtail, value, g_trie, g_branch_counter);
+            free(vtail);
+        } else {
+            /* the value of v now takes up the position */
+            t->value = value;
+        }
+    }
+}
+
+struct SmazBranch *smaz_build_custom_trie(char *codebook[254]) {
+    struct SmazBranch *trie;
+    int x;
+
+    int *g_branch_counter = 0;
+    struct SmazBranch *g_trie;
+
+    g_trie = (struct SmazBranch *)calloc(256, sizeof(struct SmazBranch));
+    g_trie[0].value = -1;
+    g_branch_counter = (int *)calloc(1, sizeof(int));
+    *g_branch_counter = 1;
+
+    for (x = 0; x < 254; x++) {
+        smaz_add_to_branch(&g_trie[0], codebook[x], x, g_trie, g_branch_counter);
+    }
+
+    free(g_branch_counter);
+
+    return g_trie;
+}
+
+struct SmazBranch *smaz_build_trie() {
+    return smaz_build_custom_trie(Smaz_rcb);
+}
+
+int smaz_compress(struct SmazBranch *trie, char *in, int inlen, char *out, int outlen) {
+    int verblen = 0, _outlen = outlen;
+    char verb[256], *_out = out;
+
+    while(inlen) {
+        int needed = 0;
+        char *flush = NULL;
+        int length = 0;
+        struct SmazBranch *branch = NULL;
+        int remaining_length = inlen;
+
+        branch = trie;
+        while (remaining_length--) {
+            unsigned char nextChar;
+            struct SmazBranch **children;
+            struct SmazBranch *tmpBranch;
+            char *shortcut;
+            int shortcut_length;
+
+            nextChar = in[length];
+            if (nextChar > SMAZ_END_LETTER) {
+                break;
+            }
+            children = branch->children;
+            if (!(children && children[nextChar])) {
+                break;
+            }
+
+            tmpBranch = children[nextChar];
+            shortcut = tmpBranch->shortcut;
+            shortcut_length = tmpBranch->shortcut_length;
+            length++;
+            if (shortcut) {
+                if (length <= inlen && memcmp(shortcut, in+length, shortcut_length)) {
+                    length--;
+                    break;
+                }
+                length += shortcut_length;
+            }
+            branch = tmpBranch;
+        }
+        if (branch->value >= 0 && length <= inlen) {
+            /* Match found, prepare a verbatim bytes flush if needed */
+            if (verblen) {
+                needed = (verblen == 1) ? 2 : 2+verblen;
+                flush = out;
+                out += needed;
+                outlen -= needed;
+            }
+            /* Emit the byte */
+            if (outlen <= 0) return _outlen+1;
+            out[0] = branch->value;
+            out++;
+            outlen--;
+            inlen -= length;
+            in += length;
+            goto out;
+        }
+        
+        /* Match not found - add the byte to the verbatim buffer */
+        verb[verblen] = in[0];
+        verblen++;
+        inlen--;
+        in++;
+out:
+        /* Prepare a flush if we reached the flush length limit, and there
+         * is not already a pending flush operation. */
+        if (!flush && (verblen == 256 || (verblen > 0 && inlen == 0))) {
+            needed = (verblen == 1) ? 2 : 2+verblen;
+            flush = out;
+            out += needed;
+            outlen -= needed;
+            if (outlen < 0) return _outlen+1;
+        }
+        /* Perform a verbatim flush if needed */
+        if (flush) {
+            if (verblen == 1) {
+                flush[0] = (signed char)254;
+                flush[1] = verb[0];
+            } else {
+                flush[0] = (signed char)255;
+                flush[1] = (signed char)(verblen-1);
+                memcpy(flush+2,verb,verblen);
+            }
+            flush = NULL;
+            verblen = 0;
+        }
+    }
+    return out-_out;
+}
+
+int smaz_compress_ref(char *in, int inlen, char *out, int outlen) {
     unsigned int h1,h2,h3=0;
     int verblen = 0, _outlen = outlen;
     char verb[256], *_out = out;
@@ -105,6 +327,7 @@ int smaz_compress(char *in, int inlen, char *out, int outlen) {
                      * prepare a verbatim bytes flush if needed */
                     if (verblen) {
                         needed = (verblen == 1) ? 2 : 2+verblen;
+                        /*printf("Verb good: %d\n", verblen);*/
                         flush = out;
                         out += needed;
                         outlen -= needed;
@@ -112,6 +335,7 @@ int smaz_compress(char *in, int inlen, char *out, int outlen) {
                     /* Emit the byte */
                     if (outlen <= 0) return _outlen+1;
                     out[0] = slot[slot[0]+1];
+                    /*printf("Value: %d\n", *(unsigned char *)(&slot[slot[0]+1]));*/
                     out++;
                     outlen--;
                     inlen -= j;
@@ -155,6 +379,9 @@ out:
 }
 
 int smaz_decompress(char *in, int inlen, char *out, int outlen) {
+    return smaz_decompress_custom(Smaz_rcb, in, inlen, out, outlen);
+}
+int smaz_decompress_custom(char *cb[254], char *in, int inlen, char *out, int outlen) {
     unsigned char *c = (unsigned char*) in;
     char *_out = out;
     int _outlen = outlen;
@@ -179,7 +406,7 @@ int smaz_decompress(char *in, int inlen, char *out, int outlen) {
             inlen -= 2+len;
         } else {
             /* Codebook entry */
-            char *s = Smaz_rcb[*c];
+            char *s = cb[*c];
             int len = strlen(s);
 
             if (outlen < len) return _outlen+1;
