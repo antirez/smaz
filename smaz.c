@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <assert.h>
 
 #include "smaz.h"
 
@@ -99,10 +100,8 @@ void smaz_free_trie(struct SmazBranch *t) {
     free(t);
 }
 
-int g_branch_counter = 0;
-struct SmazBranch *g_trie;
 
-void smaz_add_to_branch(struct SmazBranch *t, char *remEntry, int value) {
+void smaz_add_to_branch(struct SmazBranch *t, char *remEntry, int value, struct SmazBranch *g_trie, int *g_branch_counter) {
     int entryLen;
     entryLen = strlen(remEntry);
 
@@ -133,7 +132,9 @@ void smaz_add_to_branch(struct SmazBranch *t, char *remEntry, int value) {
             
             tkey = (int)t->shortcut[x];
 
-            newTBranch = &g_trie[g_branch_counter++];
+            *g_branch_counter = *g_branch_counter+1;
+            assert(*g_branch_counter < 256);
+            newTBranch = &g_trie[*g_branch_counter];
             memcpy(
                     newTBranch->children,
                     t->children,
@@ -166,11 +167,13 @@ void smaz_add_to_branch(struct SmazBranch *t, char *remEntry, int value) {
 
             if (t->children[vkey] == NULL) {
                 struct SmazBranch *newVBranch;
-                newVBranch = &g_trie[g_branch_counter++];
+                *g_branch_counter = *g_branch_counter+1;
+                assert(*g_branch_counter < 256);
+                newVBranch = &g_trie[*g_branch_counter];
                 newVBranch->value = -1;
                 t->children[vkey] = newVBranch;
             }
-            smaz_add_to_branch(t->children[vkey], vtail, value);
+            smaz_add_to_branch(t->children[vkey], vtail, value, g_trie, g_branch_counter);
             free(vtail);
         } else {
             /* the value of v now takes up the position */
@@ -183,22 +186,28 @@ struct SmazBranch *smaz_build_custom_trie(char *codebook[254]) {
     struct SmazBranch *trie;
     int x;
 
-    trie = (struct SmazBranch *)calloc(255, sizeof(struct SmazBranch));
-    trie[0].value = -1;
-    g_branch_counter = 1;
-    g_trie = trie;
+    int *g_branch_counter = 0;
+    struct SmazBranch *g_trie;
+
+    g_trie = (struct SmazBranch *)calloc(256, sizeof(struct SmazBranch));
+    g_trie[0].value = -1;
+    g_branch_counter = (int *)calloc(1, sizeof(int));
+    *g_branch_counter = 1;
 
     for (x = 0; x < 254; x++) {
-        smaz_add_to_branch(&trie[0], codebook[x], x);
+        smaz_add_to_branch(&g_trie[0], codebook[x], x, g_trie, g_branch_counter);
     }
-    return &trie[0];
+
+    free(g_branch_counter);
+
+    return g_trie;
 }
 
 struct SmazBranch *smaz_build_trie() {
     return smaz_build_custom_trie(Smaz_rcb);
 }
 
-int smaz_compress_trie(struct SmazBranch *trie, char *in, int inlen, char *out, int outlen) {
+int smaz_compress(struct SmazBranch *trie, char *in, int inlen, char *out, int outlen) {
     int verblen = 0, _outlen = outlen;
     char verb[256], *_out = out;
 
@@ -289,7 +298,7 @@ out:
     return out-_out;
 }
 
-int smaz_compress(char *in, int inlen, char *out, int outlen) {
+int smaz_compress_ref(char *in, int inlen, char *out, int outlen) {
     unsigned int h1,h2,h3=0;
     int verblen = 0, _outlen = outlen;
     char verb[256], *_out = out;
@@ -370,6 +379,9 @@ out:
 }
 
 int smaz_decompress(char *in, int inlen, char *out, int outlen) {
+    return smaz_decompress_custom(Smaz_rcb, in, inlen, out, outlen);
+}
+int smaz_decompress_custom(char *cb[254], char *in, int inlen, char *out, int outlen) {
     unsigned char *c = (unsigned char*) in;
     char *_out = out;
     int _outlen = outlen;
@@ -394,7 +406,7 @@ int smaz_decompress(char *in, int inlen, char *out, int outlen) {
             inlen -= 2+len;
         } else {
             /* Codebook entry */
-            char *s = Smaz_rcb[*c];
+            char *s = cb[*c];
             int len = strlen(s);
 
             if (outlen < len) return _outlen+1;

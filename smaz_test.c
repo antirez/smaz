@@ -82,7 +82,7 @@ void test_compress_small_out_buff() {
 
     trie = smaz_build_trie();
     while(strings[j]) {
-        comprlen = smaz_compress_trie(
+        comprlen = smaz_compress(
                 trie,
                 strings[j],
                 strlen(strings[j]),
@@ -111,7 +111,7 @@ void test_null_term() {
     struct SmazBranch *trie;
 
     trie = smaz_build_trie();
-    comprlen = smaz_compress_trie(
+    comprlen = smaz_compress(
             trie,
             no_null_str,
             4,
@@ -136,7 +136,7 @@ void test_null_term() {
             );
         exit(1);
     }
-    comprlen = smaz_compress_trie(
+    comprlen = smaz_compress(
             trie,
             null_term_str,
             strlen(null_term_str)+1, /* include the null terminator this time. */
@@ -199,7 +199,7 @@ void bench_trie_smaz() {
 
         gettimeofday(&t1, NULL);
         for (x = 0; x < num_loops; x++) {
-            smaz_compress_trie(
+            smaz_compress(
                     trie,
                     in,
                     numbytes,
@@ -249,7 +249,7 @@ void bench_old_smaz() {
 
         gettimeofday(&t1, NULL);
         for (x = 0; x < num_loops; x++) {
-            smaz_compress(
+            smaz_compress_ref(
                     in,
                     numbytes,
                     comp_out,
@@ -279,7 +279,7 @@ void test_strings() {
     while(strings[j]) {
         int comprlevel, comprlen_good;
 
-        comprlen = smaz_compress_trie(
+        comprlen = smaz_compress(
                 trie,
                 strings[j],
                 strlen(strings[j]),
@@ -287,7 +287,7 @@ void test_strings() {
                 sizeof(out)
             );
 
-        comprlen_good = smaz_compress(
+        comprlen_good = smaz_compress_ref(
                 strings[j],
                 strlen(strings[j]),
                 out_good,
@@ -345,14 +345,14 @@ void test_random() {
                 in[j] = (char)(fastrand() & 0xff);
         }
 
-        comprlen = smaz_compress_trie(trie, in,ranlen,out,sizeof(out));
-        /*comprlen = smaz_compress(in,ranlen,out,sizeof(out));*/
+        comprlen = smaz_compress(trie, in,ranlen,out,sizeof(out));
+        /*comprlen = smaz_compress_ref(in,ranlen,out,sizeof(out));*/
         decomprlen = smaz_decompress(out,comprlen,d,sizeof(out));
         if (ranlen != decomprlen || memcmp(in,d,ranlen)) {
             printf("Bug! TEST NOT PASSED: %d\n", 1000000-times);
             hexDump("in", &in, ranlen);
             hexDump("out bad", &out, comprlen);
-            comprlen = smaz_compress(in,ranlen,out,sizeof(out));
+            comprlen = smaz_compress_ref(in,ranlen,out,sizeof(out));
             hexDump("out good", &out, comprlen);
             exit(1);
         }
@@ -386,7 +386,7 @@ void bench_random_old_smaz() {
             else
                 in[j] = (char)(fastrand() & 0xff);
         }
-        smaz_compress(in,ranlen,out,sizeof(out));
+        smaz_compress_ref(in,ranlen,out,sizeof(out));
     }
     gettimeofday(&t2, NULL);
     
@@ -420,7 +420,7 @@ void bench_random_trie() {
             else
                 in[j] = (char)(fastrand() & 0xff);
         }
-        smaz_compress_trie(trie, in,ranlen,out,sizeof(out));
+        smaz_compress(trie, in,ranlen,out,sizeof(out));
     }
     gettimeofday(&t2, NULL);
     
@@ -483,7 +483,7 @@ void bench_random_compressible() {
     gettimeofday(&t1, NULL);
 
     while (times--) {
-        smaz_compress_trie(
+        smaz_compress(
                 trie,
                 in[times],
                 strlen(in[times]),
@@ -529,7 +529,7 @@ void bench_random_compressible_old() {
     gettimeofday(&t1, NULL);
 
     while (times--) {
-        smaz_compress(
+        smaz_compress_ref(
                 in[times],
                 strlen(in[times]),
                 out,
