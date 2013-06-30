@@ -213,30 +213,31 @@ int smaz_compress_trie(struct SmazBranch *trie, char *in, int inlen, char *out, 
         while (remaining_length--) {
             unsigned char nextChar;
             struct SmazBranch **children;
+            struct SmazBranch *tmpBranch;
+            char *shortcut;
+            int shortcut_length;
+
             nextChar = in[length];
             if (nextChar > SMAZ_END_LETTER) {
                 break;
             }
             children = branch->children;
-            if (children && children[nextChar]) {
-                struct SmazBranch *tmpBranch;
-                char *shortcut;
-                int shortcut_length;
-                tmpBranch = children[nextChar];
-                shortcut = tmpBranch->shortcut;
-                shortcut_length = tmpBranch->shortcut_length;
-                length++;
-                if (shortcut) {
-                    if (length <= inlen && memcmp(shortcut, in+length, shortcut_length)) {
-                        length--;
-                        break;
-                    }
-                    length += shortcut_length;
-                }
-                branch = tmpBranch;
-                continue;
+            if (!(children && children[nextChar])) {
+                break;
             }
-            break;
+
+            tmpBranch = children[nextChar];
+            shortcut = tmpBranch->shortcut;
+            shortcut_length = tmpBranch->shortcut_length;
+            length++;
+            if (shortcut) {
+                if (length <= inlen && memcmp(shortcut, in+length, shortcut_length)) {
+                    length--;
+                    break;
+                }
+                length += shortcut_length;
+            }
+            branch = tmpBranch;
         }
         if (branch->value >= 0 && length <= inlen) {
             /* Match found, prepare a verbatim bytes flush if needed */
