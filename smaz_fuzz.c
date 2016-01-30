@@ -2,7 +2,7 @@
  * Read fuzzed input from mmaped file and compress/uncompress it.
  * First byte of the file is input's len.
  *
- * afl-gcc -O2 smaz_fuzz.c smaz.c
+ * afl-gcc -O2 -g smaz_fuzz.c smaz.c
  */
 
 #include <assert.h>
@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
 	int fd;
 
 	fd = open(argv[1], O_RDONLY);
-	buf = mmap(NULL, 2 * pagesz, prot, flags, fd, 0);
+	buf = mmap(NULL, pagesz, prot, flags, fd, 0);
 	close(fd);
 
 	in = buf + 1;
