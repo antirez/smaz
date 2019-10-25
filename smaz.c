@@ -1,7 +1,7 @@
 #include <string.h>
 
 /* Our compression codebook, used for compression */
-static char *Smaz_cb[241] = {
+static const char *Smaz_cb[241] = {
 "\002s,\266", "\003had\232\002leW", "\003on \216", "", "\001yS",
 "\002ma\255\002li\227", "\003or \260", "", "\002ll\230\003s t\277",
 "\004fromg\002mel", "", "\003its\332", "\001z\333", "\003ingF", "\001>\336",
@@ -52,7 +52,7 @@ static char *Smaz_cb[241] = {
 };
 
 /* Reverse compression codebook, used for decompression */
-static char *Smaz_rcb[254] = {
+static const char *Smaz_rcb[254] = {
 " ", "the", "e", "t", "a", "of", "o", "and", "i", "n", "s", "e ", "r", " th",
 " t", "in", "he", "th", "h", "he ", "to", "\r\n", "l", "s ", "d", " a", "an",
 "er", "c", " o", "d ", "on", " of", "re", "of ", "t ", ", ", "is", "u", "at",
@@ -76,7 +76,7 @@ static char *Smaz_rcb[254] = {
 "e, ", " it", "whi", " ma", "ge", "x", "e c", "men", ".com"
 };
 
-int smaz_compress(char *in, int inlen, char *out, int outlen) {
+int smaz_compress(const char *in, int inlen, char *out, int outlen) {
     unsigned int h1,h2,h3=0;
     int verblen = 0, _outlen = outlen;
     char verb[256], *_out = out;
@@ -84,7 +84,7 @@ int smaz_compress(char *in, int inlen, char *out, int outlen) {
     while(inlen) {
         int j = 7, needed;
         char *flush = NULL;
-        char *slot;
+        const char *slot;
 
         h1 = h2 = in[0]<<3;
         if (inlen > 1) h2 += in[1];
@@ -179,7 +179,7 @@ int smaz_decompress(char *in, int inlen, char *out, int outlen) {
             inlen -= 2+len;
         } else {
             /* Codebook entry */
-            char *s = Smaz_rcb[*c];
+            const char *s = Smaz_rcb[*c];
             int len = strlen(s);
 
             if (outlen < len) return _outlen+1;

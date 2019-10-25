@@ -11,7 +11,7 @@ int main(void) {
     int comprlen, decomprlen;
     int j, ranlen;
     int times = 1000000;
-    char *strings[] = {
+    const char *strings[] = {
         "This is a small string",
         "foobar",
         "the end",
